@@ -1,0 +1,30 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build Debug (Make)",
+      "command": "cmake -DCMAKE_BUILD_TYPE=Debug -B ./build_debug && make -C ./build_debug",
+      "args": [],
+      "type": "shell"
+    },
+    {
+      "label": "Build Release (Make)",
+      "command": "cmake -DCMAKE_BUILD_TYPE=Release -B ./build_release && make -C ./build_release",
+      "args": [],
+      "type": "shell"
+    },
+    {
+      "label": "Build Debug (Ninja)",
+      // verbose may be redundant here (see CMakeLists.txt)
+      "command": "cmake -DCMAKE_BUILD_TYPE=Debug -B ./build_debug -G Ninja && ninja -v -C ./build_debug",
+      "args": [],
+      "type": "shell"
+    },
+    {
+      "label": "Build Debug (Release)",
+      "command": "cmake -DCMAKE_BUILD_TYPE=Release -B ./build_release -G Ninja && ninja -v -C ./build_release",
+      "args": [],
+      "type": "shell"
+    }
+  ]
+}

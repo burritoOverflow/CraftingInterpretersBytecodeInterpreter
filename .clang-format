@@ -1,0 +1,9 @@
+Language: Cpp
+BasedOnStyle: Chromium
+IndentWidth: 4
+TabWidth: 4
+NamespaceIndentation: None
+ColumnLimit: 100
+ReflowComments: true
+UseTab: Never
+PointerAlignment: Left
