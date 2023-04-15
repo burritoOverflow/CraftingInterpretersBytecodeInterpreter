@@ -33,6 +33,7 @@ set(SOURCES
     src/chunk.c
     src/debug.c
     src/memory.c
+    src/value.c
     src/main.c
 )
 

@@ -5,7 +5,7 @@
 
 void disassembleChunk(Chunk* chunk, const char* name);
 
-// disassemble the current instuction and return the offset to the next instruction
+// disassemble the current instruction at the `offset` and return the offset to the next instruction
 int disassembleInstruction(Chunk* chunk, int offset);
 
 #endif
