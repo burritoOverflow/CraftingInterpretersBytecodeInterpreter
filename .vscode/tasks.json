@@ -21,7 +21,7 @@
       "type": "shell"
     },
     {
-      "label": "Build Debug (Release)",
+      "label": "Build Release (Ninja)",
       "command": "cmake -DCMAKE_BUILD_TYPE=Release -B ./build_release -G Ninja && ninja -v -C ./build_release",
       "args": [],
       "type": "shell"

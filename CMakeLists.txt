@@ -20,6 +20,8 @@ endif()
 
 # All corresponding source files
 set(SOURCES
+    src/chunk.c
+    src/memory.c
     src/main.c
 )
 
