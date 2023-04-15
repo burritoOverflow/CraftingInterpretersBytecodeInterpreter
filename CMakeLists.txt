@@ -12,7 +12,7 @@ endif()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 # Omitting Werror during initial development for ease of checkin
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wpedantic") 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wpedantic")
 
 # requires 3.21 for c17
 set(CMAKE_C_STANDARD 17)
@@ -31,6 +31,7 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 # All corresponding source files
 set(SOURCES
     src/chunk.c
+    src/debug.c
     src/memory.c
     src/main.c
 )
@@ -39,6 +40,6 @@ add_executable(clox_bytecode_interpreter ${SOURCES})
 
 # header files in `include` directory
 target_include_directories(clox_bytecode_interpreter
-    PRIVATE 
+    PRIVATE
         ${PROJECT_SOURCE_DIR}/include
 )
