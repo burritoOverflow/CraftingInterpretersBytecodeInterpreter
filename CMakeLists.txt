@@ -21,6 +21,7 @@ set(CMAKE_C_EXTENSIONS OFF)
 
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
     message("Debug build: using CMAKE_C_FLAGS_DEBUG: ${CMAKE_C_FLAGS_DEBUG}")
+    add_compile_definitions(DEBUG_TRACE_EXECUTION)
 elseif(CMAKE_BUILD_TYPE STREQUAL Release)
     message("Release build: using CMAKE_C_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE}")
 endif()
@@ -30,6 +31,7 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # All corresponding source files
 set(SOURCES
+    src/vm.c
     src/chunk.c
     src/debug.c
     src/memory.c

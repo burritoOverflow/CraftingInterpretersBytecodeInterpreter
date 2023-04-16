@@ -15,10 +15,14 @@
     },
     {
       "label": "Build Debug (Ninja)",
-      // verbose may be redundant here (see CMakeLists.txt)
       "command": "cmake -DCMAKE_BUILD_TYPE=Debug -B ./build_debug -G Ninja && ninja -v -C ./build_debug",
       "args": [],
-      "type": "shell"
+      "type": "shell",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
     },
     {
       "label": "Build Release (Ninja)",
