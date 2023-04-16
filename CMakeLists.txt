@@ -32,6 +32,8 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # All corresponding source files
 set(SOURCES
+    src/scanner.c
+    src/compiler.c
     src/vm.c
     src/chunk.c
     src/debug.c
