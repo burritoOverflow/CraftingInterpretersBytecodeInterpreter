@@ -11,6 +11,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+
 # Omitting Werror during initial development for ease of checkin
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wpedantic")
 

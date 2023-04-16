@@ -32,9 +32,19 @@ Value pop() {
 static InterpretResult run() {
 // read the byte currently pointed to by the IP, and advance IP
 #define READ_BYTE() (*vm.ip++)
+
 // reads next byte from bytecode and uses that as an
 // index in the Value's constant table
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
+
+// pre-processor macro magic; pass the operator as argument
+// order is critical; left operand gets pushed before the right operand
+#define BINARY_OP(op)     \
+    do {                  \
+        double b = pop(); \
+        double a = pop(); \
+        push(a op b);     \
+    } while (false);
 
     for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
@@ -50,6 +60,26 @@ static InterpretResult run() {
 
         uint8_t instruction;
         switch (instruction = READ_BYTE()) {
+            case OP_ADD: {
+                BINARY_OP(+);
+                break;
+            }
+
+            case OP_SUBTRACT: {
+                BINARY_OP(-);
+                break;
+            }
+
+            case OP_MULTIPLY: {
+                BINARY_OP(*);
+                break;
+            }
+
+            case OP_DIVIDE: {
+                BINARY_OP(/);
+                break;
+            }
+
             case OP_NEGATE: {
                 // add to the stack the negatated current value
                 push(-pop());
@@ -72,6 +102,7 @@ static InterpretResult run() {
 
 #undef READ_BYTE
 #undef READ_CONSTANT
+#undef BINARY_OP
 }
 
 InterpretResult interpret(Chunk* chunk) {
