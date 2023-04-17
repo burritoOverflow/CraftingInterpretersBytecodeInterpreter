@@ -18,14 +18,14 @@ typedef enum {
     INTERPRET_RUNTIME_ERROR,
 } InterpretResult;
 
-void initVm();
+void initVm(void);
 
-void freeVm();
+void freeVm(void);
 
 InterpretResult interpret(const char* source);
 
 void push(Value Value);
 
-Value pop();
+Value pop(void);
 
 #endif

@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 
 #include "common.h"
@@ -8,15 +9,15 @@
 VM vm;
 
 // stack is empty when pointer is at the start of the array
-void resetStack() {
+void resetStack(void) {
     vm.stackTop = vm.stack;
 }
 
-void initVm() {
+void initVm(void) {
     resetStack();
 }
 
-void freeVm() {}
+void freeVm(void) {}
 
 void push(Value value) {
     // recall the pointer points to the location of the next value to be added
@@ -24,13 +25,13 @@ void push(Value value) {
     vm.stackTop++;
 }
 
-Value pop() {
+Value pop(void) {
     // as above recall the pointer's location is the _next_ available slot in the array
     vm.stackTop--;
     return *vm.stackTop;
 }
 
-static InterpretResult run() {
+static InterpretResult run(void) {
 // read the byte currently pointed to by the IP, and advance IP
 #define READ_BYTE() (*vm.ip++)
 

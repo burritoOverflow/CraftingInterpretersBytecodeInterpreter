@@ -20,23 +20,23 @@ void initScanner(const char* source) {
     scanner.line = 1;
 }
 
-static bool isAtEnd() {
+static bool isAtEnd(void) {
     return *scanner.current == '\0';
 }
 
 // Consume the current character and return it
-static char advance() {
+static char advance(void) {
     scanner.current++;
     return scanner.current[-1];
 }
 
 // get, but do not consume, the scanner's current character
-static char peek() {
+static char peek(void) {
     return *scanner.current;
 }
 
 // get, but do not consume, the character one index greater than current
-static char peekNext() {
+static char peekNext(void) {
     if (isAtEnd()) {
         return '\0';
     }
@@ -78,7 +78,7 @@ static Token errorToken(const char* message) {
 }
 
 // advance the scanner past any leading whitespace
-static void skipWhitespace() {
+static void skipWhitespace(void) {
     for (;;) {
         const char c = peek();
         switch (c) {
@@ -113,7 +113,7 @@ static void skipWhitespace() {
     }
 }
 
-Token scanToken() {
+Token scanToken(void) {
     skipWhitespace();
     scanner.start = scanner.current;
     if (isAtEnd()) {
