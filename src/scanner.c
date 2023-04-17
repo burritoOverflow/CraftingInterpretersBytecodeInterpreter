@@ -20,6 +20,16 @@ void initScanner(const char* source) {
     scanner.line = 1;
 }
 
+static bool isAlpha(const char c) {
+    // allow identifiers with a leading underscore
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c == '_');
+}
+
+static bool isDigit(const char c) {
+    return c >= '0' && c <= '9';
+}
+
+// determine if we are at the end of the string
 static bool isAtEnd(void) {
     return *scanner.current == '\0';
 }
@@ -113,6 +123,130 @@ static void skipWhitespace(void) {
     }
 }
 
+static TokenType checkKeyword(int start, int length, const char* rest, TokenType tokenType) {
+    if (scanner.current - scanner.start == start + length &&
+        memcmp(scanner.start + start, rest, length) == 0) {
+        return tokenType;
+    }
+    return TOKEN_IDENTIFIER;
+}
+
+static TokenType identifierType(void) {
+    switch (scanner.start[0]) {
+        // initial letters that correspond to keywords
+        case 'a':
+            return checkKeyword(1, 2, "nd", TOKEN_AND);
+
+        case 'c':
+            return checkKeyword(1, 4, "lass", TOKEN_CLASS);
+
+        case 'e':
+            return checkKeyword(1, 3, "lse", TOKEN_ELSE);
+
+        case 'f':
+            if (scanner.current - scanner.start > 1) {
+                switch (scanner.start[1]) {
+                    case 'a':
+                        return checkKeyword(2, 3, "lse", TOKEN_FALSE);
+
+                    case 'o':
+                        return checkKeyword(2, 1, "r", TOKEN_FOR);
+
+                    case 'u':
+                        return checkKeyword(2, 1, "n", TOKEN_FUN);
+                }
+            }
+            // fallthrough to identifier
+            break;
+
+        case 'i':
+            return checkKeyword(1, 1, "f", TOKEN_IF);
+
+        case 'n':
+            return checkKeyword(1, 3, "il", TOKEN_NIL);
+
+        case 'o':
+            return checkKeyword(1, 1, "r", TOKEN_OR);
+
+        case 'p':
+            return checkKeyword(1, 4, "rint", TOKEN_PRINT);
+
+        case 'r':
+            return checkKeyword(1, 5, "eturn", TOKEN_RETURN);
+
+        case 's':
+            return checkKeyword(1, 4, "uper", TOKEN_SUPER);
+
+        case 't':
+            if (scanner.current - scanner.start > 1) {
+                switch (scanner.start[1]) {
+                    case 'h':
+                        return checkKeyword(2, 2, "is", TOKEN_THIS);
+
+                    case 'r':
+                        return checkKeyword(2, 2, "ue", TOKEN_TRUE);
+                }
+            }
+
+        case 'v':
+            return checkKeyword(1, 2, "ar", TOKEN_VAR);
+
+        case 'w':
+            return checkKeyword(1, 4, "hile", TOKEN_WHILE);
+    }
+
+    // not a keyword, therefore identifer
+    return TOKEN_IDENTIFIER;
+}
+
+static Token number(void) {
+    while (isDigit(peek())) {
+        advance();
+    }
+
+    // look for a fractional part
+    if (peek() == '.' && isDigit(peekNext())) {
+        // consume the '.'
+        advance();
+
+        // consume the remaining digits
+        while (isDigit(peek())) {
+            advance();
+        }
+    }
+
+    return makeToken(TOKEN_NUMBER);
+}
+
+static Token string(void) {
+    // consume each character in the string
+    while (peek() != '"' && !isAtEnd()) {
+        if (peek() == '\n') {
+            // support multi-line strings
+            scanner.line++;
+            advance();
+        }
+    }
+
+    // string ended before encountering closing '"'
+    if (isAtEnd()) {
+        return errorToken("Unterminated string");
+    }
+
+    // consume the closing quote
+    advance();
+    return makeToken(TOKEN_STRING);
+}
+
+static Token identifier(void) {
+    // consume the characters in the identifier
+    while (isAlpha(peek()) || isDigit(peek())) {
+        advance();
+    }
+
+    return makeToken(identifierType());
+}
+
 Token scanToken(void) {
     skipWhitespace();
     scanner.start = scanner.current;
@@ -121,6 +255,14 @@ Token scanToken(void) {
     }
 
     const char c = advance();
+
+    if (isDigit(c)) {
+        return number();
+    }
+
+    if (isAlpha(c)) {
+        return identifier();
+    }
 
     switch (c) {
         case '(':
@@ -167,6 +309,9 @@ Token scanToken(void) {
 
         case '>':
             return makeToken(match('=') ? TOKEN_GREATER_EQUAL : TOKEN_GREATER);
+
+        case '"':
+            return string();
     }
 
     return errorToken("Unexpected character");
