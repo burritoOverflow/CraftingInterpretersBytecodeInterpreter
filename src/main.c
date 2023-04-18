@@ -36,7 +36,7 @@ static char* readFile(const char* path) {
     rewind(file);
 
     // allocate a buffer the size of the file
-    char* buffer = (char*)malloc(fileSize + 1);
+    char* buffer = malloc(fileSize + 1);
     if (buffer == NULL) {
         fprintf(stderr, "Not enough memory to read \"%s\".\n", path);
         exit(74);

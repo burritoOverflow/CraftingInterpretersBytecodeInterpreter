@@ -9,7 +9,7 @@
 // handles the work of getting the correct size of the array's element type and casting
 // results (void *) back to a pointer of the correct type
 #define GROW_ARRAY(type, pointer, oldCount, newCount) \
-    (type*)reallocate(pointer, sizeof(type) * (oldCount), sizeof(type) * (newCount))
+    reallocate(pointer, sizeof(type) * (oldCount), sizeof(type) * (newCount))
 
 #define FREE_ARRAY(type, pointer, oldCount) reallocate(pointer, sizeof(type) * (oldCount), 0)
 
