@@ -10,25 +10,26 @@ VM vm;
 
 // stack is empty when pointer is at the start of the array
 void resetStack(void) {
-    vm.stackTop = vm.stack;
+  vm.stackTop = vm.stack;
 }
 
 void initVm(void) {
-    resetStack();
+  resetStack();
 }
 
 void freeVm(void) {}
 
 void push(Value value) {
-    // recall the pointer points to the location of the next value to be added
-    *vm.stackTop = value;
-    vm.stackTop++;
+  // recall the pointer points to the location of the next value to be added
+  *vm.stackTop = value;
+  vm.stackTop++;
 }
 
 Value pop(void) {
-    // as above recall the pointer's location is the _next_ available slot in the array
-    vm.stackTop--;
-    return *vm.stackTop;
+  // as above recall the pointer's location is the _next_ available slot in the
+  // array
+  vm.stackTop--;
+  return *vm.stackTop;
 }
 
 static InterpretResult run(void) {
@@ -41,66 +42,66 @@ static InterpretResult run(void) {
 
 // pre-processor macro magic; pass the operator as argument
 // order is critical; left operand gets pushed before the right operand
-#define BINARY_OP(op)     \
-    do {                  \
-        double b = pop(); \
-        double a = pop(); \
-        push(a op b);     \
-    } while (false);
+#define BINARY_OP(op) \
+  do {                \
+    double b = pop(); \
+    double a = pop(); \
+    push(a op b);     \
+  } while (false);
 
-    for (;;) {
+  for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
-        printf("        ");
-        for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
-            printf("[ ");
-            printValue(*slot);
-            printf(" ]");
-        }
-        printf("\n");
-        disassembleInstruction(vm.chunk, (int)(vm.ip - vm.chunk->code));
+    printf("        ");
+    for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
+      printf("[ ");
+      printValue(*slot);
+      printf(" ]");
+    }
+    printf("\n");
+    disassembleInstruction(vm.chunk, (int)(vm.ip - vm.chunk->code));
 #endif
 
-        uint8_t instruction;
-        switch (instruction = READ_BYTE()) {
-            case OP_ADD: {
-                BINARY_OP(+);
-                break;
-            }
+    uint8_t instruction;
+    switch (instruction = READ_BYTE()) {
+      case OP_ADD: {
+        BINARY_OP(+);
+        break;
+      }
 
-            case OP_SUBTRACT: {
-                BINARY_OP(-);
-                break;
-            }
+      case OP_SUBTRACT: {
+        BINARY_OP(-);
+        break;
+      }
 
-            case OP_MULTIPLY: {
-                BINARY_OP(*);
-                break;
-            }
+      case OP_MULTIPLY: {
+        BINARY_OP(*);
+        break;
+      }
 
-            case OP_DIVIDE: {
-                BINARY_OP(/);
-                break;
-            }
+      case OP_DIVIDE: {
+        BINARY_OP(/);
+        break;
+      }
 
-            case OP_NEGATE: {
-                // add to the stack the negatated current value
-                push(-pop());
-                break;
-            }
-            case OP_RETURN: {
-                printValue(pop());
-                printf("\n");
-                return INTERPRET_OK;
-            }
+      case OP_NEGATE: {
+        // add to the stack the negatated current value
+        push(-pop());
+        break;
+      }
+      case OP_RETURN: {
+        printValue(pop());
+        printf("\n");
+        return INTERPRET_OK;
+      }
 
-            case OP_CONSTANT: {
-                // "loads" a constant (pg. 276)
-                const Value constant = READ_CONSTANT();
-                push(constant);
-                break;
-            }
-        }
+      case OP_CONSTANT: {
+        // "loads" a constant (pg. 276)
+        const Value constant = READ_CONSTANT();
+        push(constant);
+        break;
+      }
     }
+  }
 
 #undef READ_BYTE
 #undef READ_CONSTANT
@@ -108,6 +109,21 @@ static InterpretResult run(void) {
 }
 
 InterpretResult interpret(const char* source) {
-    compile(source);
-    return INTERPRET_OK;
+  Chunk chunk;
+  initChunk(&chunk);
+
+  // compiler will take the user's source and populate the chunk with
+  // bytecode, if errors, discard the chunk
+  if (!compile(source, &chunk)) {
+    freeChunk(&chunk);
+    return INTERPRET_COMPILE_ERROR;
+  }
+
+  vm.chunk = &chunk;
+  vm.ip = vm.chunk->code;
+
+  InterpretResult result = run();
+
+  freeChunk(&chunk);
+  return result;
 }
