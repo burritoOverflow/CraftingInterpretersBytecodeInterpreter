@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -11,6 +12,24 @@ VM vm;
 // stack is empty when pointer is at the start of the array
 void resetStack(void) {
     vm.stackTop = vm.stack;
+}
+
+// output a formatted error
+static void runtimeError(const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+
+    vfprintf(stderr, format, args);
+    va_end(args);
+    fputs("\n", stderr);
+
+    const size_t instruction = vm.ip - vm.chunk->code - 1;
+
+    // for reporting the line where the error occured
+    const int line = vm.chunk->lines[instruction];
+    fprintf(stderr, "[line %d] in script\n", line);
+
+    resetStack();
 }
 
 void initVm(void) {
@@ -32,6 +51,12 @@ Value pop(void) {
     return *vm.stackTop;
 }
 
+// Get a value from the vm's stack (but do not pop it)
+// distance determines the depth of the stack from where an Value is retrieved
+static Value peek(int distance) {
+    return vm.stackTop[-1 - distance];
+}
+
 static InterpretResult run(void) {
 // read the byte currently pointed to by the IP, and advance IP
 #define READ_BYTE() (*vm.ip++)
@@ -40,14 +65,18 @@ static InterpretResult run(void) {
 // index in the Value's constant table
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
 
-// pre-processor macro magic; pass the operator as argument
 // order is critical; left operand gets pushed before the right operand
-#define BINARY_OP(op)     \
-    do {                  \
-        double b = pop(); \
-        double a = pop(); \
-        push(a op b);     \
-    } while (false);
+// perform type checking and conversion
+#define BINARY_OP(valueType, op)                          \
+    do {                                                  \
+        if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
+            runtimeError("Operands must be numbers");     \
+            return INTERPRET_RUNTIME_ERROR;               \
+        }                                                 \
+        const double b = AS_NUMBER(pop());                \
+        const double a = AS_NUMBER(pop());                \
+        push(valueType(a op b));                          \
+    } while (false)
 
     for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
@@ -64,28 +93,32 @@ static InterpretResult run(void) {
         uint8_t instruction;
         switch (instruction = READ_BYTE()) {
             case OP_ADD: {
-                BINARY_OP(+);
+                BINARY_OP(NUMBER_VAL, +);
                 break;
             }
 
             case OP_SUBTRACT: {
-                BINARY_OP(-);
+                BINARY_OP(NUMBER_VAL, -);
                 break;
             }
 
             case OP_MULTIPLY: {
-                BINARY_OP(*);
+                BINARY_OP(NUMBER_VAL, *);
                 break;
             }
 
             case OP_DIVIDE: {
-                BINARY_OP(/);
+                BINARY_OP(NUMBER_VAL, /);
                 break;
             }
 
             case OP_NEGATE: {
-                // add to the stack the negatated current value
-                push(-pop());
+                if (!IS_NUMBER(peek(0))) {
+                    runtimeError("Operand must be a number");
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+
+                push(NUMBER_VAL(AS_NUMBER(pop())));
                 break;
             }
             case OP_RETURN: {

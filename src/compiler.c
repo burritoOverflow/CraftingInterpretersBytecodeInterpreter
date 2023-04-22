@@ -191,7 +191,7 @@ static void emitConstant(Value value) {
 // the parsed value
 static void number(void) {
     const double value = strtod(parser.previous.start, NULL);
-    emitConstant(value);
+    emitConstant(NUMBER_VAL(value));
 }
 
 static void unary(void) {
