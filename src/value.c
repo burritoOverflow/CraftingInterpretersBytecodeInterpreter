@@ -43,3 +43,24 @@ void printValue(Value value) {
             break;
     }
 }
+
+// chek for equality given two Values
+bool valuesEqual(Value a, Value b) {
+    if (a.type != b.type)
+        return false;
+
+    // types equal, determine which type and check equality
+    switch (a.type) {
+        case VAL_BOOL:
+            return AS_BOOL(a) == AS_BOOL(b);
+
+        case VAL_NIL:
+            return true;
+
+        case VAL_NUMBER:
+            return AS_NUMBER(a) == AS_NUMBER(b);
+
+        default:
+            return false;
+    }
+}
