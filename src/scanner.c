@@ -224,8 +224,8 @@ static Token string(void) {
         if (peek() == '\n') {
             // support multi-line strings
             scanner.line++;
-            advance();
         }
+        advance();
     }
 
     // string ended before encountering closing '"'

@@ -37,6 +37,7 @@ set(SOURCES
     src/compiler.c
     src/vm.c
     src/chunk.c
+    src/object.c
     src/debug.c
     src/memory.c
     src/value.c

@@ -10,6 +10,7 @@ typedef struct {
     uint8_t* ip;             // instruction pointer
     Value stack[STACK_MAX];  // stack semantics are implemented
     Value* stackTop;  // points at the elem just past the elem containing the top value in the stack
+    Obj* objects;     // pointer to the head of the list of allocated objects
 } VM;
 
 typedef enum {
@@ -17,6 +18,8 @@ typedef enum {
     INTERPRET_COMPILE_ERROR,
     INTERPRET_RUNTIME_ERROR,
 } InterpretResult;
+
+extern VM vm;
 
 void initVm(void);
 
