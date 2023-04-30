@@ -11,6 +11,20 @@
 #include "debug.h"
 #endif
 
+/*
+ statement   → exprStmt
+               | forStmt
+               | ifStmt
+               | printStmt
+               | returnStmt
+               | whileStmt
+               | block ;
+
+declaration    → classDecl
+              | funDecl
+              | varDecl
+              | statement ;
+ */
 typedef struct {
     Token current;
     Token previous;
@@ -51,6 +65,8 @@ Chunk* compilingChunk;
 
 // forward declarations
 static ParseRule* getRule(TokenType type);
+
+static void statement(void);
 
 static void parsePrecedence(Precedence precedence);
 
@@ -107,6 +123,18 @@ static void consume(TokenType tokenType, const char* errorMsg) {
         return;
     }
     errorAtCurrent(errorMsg);
+}
+
+static bool check(TokenType tokenType) {
+    return parser.current.tokenType == tokenType;
+}
+
+static bool match(TokenType type) {
+    if (!check(type))
+        return false;
+
+    advance();
+    return true;
 }
 
 static void emitByte(uint8_t byte) {
@@ -189,7 +217,7 @@ static void binary(void) {
     }
 }
 
-// emit the byte for the corresponding literal tokentype
+// emit the byte for the corresponding literal token type
 static void literal(void) {
     // parsePrecedence has already consumed the keyword token,
     //  so we'll just output the proper instruction
@@ -214,6 +242,22 @@ static void literal(void) {
 static void expression(void) {
     // parse the lower precedence level (subsumes all the higher precedences too)
     parsePrecedence(PREC_ASSIGNMENT);
+}
+
+static void printStatement(void) {
+    expression();
+    consume(TOKEN_SEMICOLON, "Expect ';' after value.");
+    emitByte(OP_PRINT);
+}
+
+static void declaration(void) {
+    statement();
+}
+
+static void statement(void) {
+    if (match(TOKEN_PRINT)) {
+        printStatement();
+    }
 }
 
 static void grouping(void) {
@@ -346,8 +390,9 @@ bool compile(const char* source, Chunk* chunk) {
     parser.panicMode = false;
 
     advance();
-    expression();
-    consume(TOKEN_EOF, "Expect end of expression");
+    while (!match(TOKEN_EOF)) {
+        declaration();
+    }
     endCompiler();
 
     return !parser.hadError;

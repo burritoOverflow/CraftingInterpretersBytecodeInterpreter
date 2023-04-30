@@ -310,7 +310,8 @@ Token scanToken(void) {
 
         case '"':
             return string();
-    }
 
-    return errorToken("Unexpected character");
+        default:
+            return errorToken("Unexpected character.");
+    }
 }
