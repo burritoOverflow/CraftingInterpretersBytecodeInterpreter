@@ -68,6 +68,10 @@ static ParseRule* getRule(TokenType type);
 
 static void statement(void);
 
+static void defineVariable(uint8_t global);
+
+static uint8_t parseVariable(const char* errorMsg);
+
 static void parsePrecedence(Precedence precedence);
 
 static Chunk* currentChunk(void) {
@@ -244,19 +248,71 @@ static void expression(void) {
     parsePrecedence(PREC_ASSIGNMENT);
 }
 
+//
+static void varDeclaration() {
+    uint8_t global = parseVariable("Expect variable name.");
+
+    if (match(TOKEN_EQUAL)) {
+        expression();
+    } else {
+        emitByte(OP_NIL);  // de-sugars into var a = nil;
+    }
+
+    consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration");
+
+    defineVariable(global);
+}
+
+// an expression followed by a semicolon (expression where statement is expected)
+static void expressionStatement(void) {
+    expression();
+    consume(TOKEN_SEMICOLON, "Expect ';' after expression");
+    emitByte(OP_POP);
+}
+
 static void printStatement(void) {
     expression();
     consume(TOKEN_SEMICOLON, "Expect ';' after value.");
     emitByte(OP_PRINT);
 }
 
+static void synchronize(void) {
+    parser.panicMode = false;
+
+    // skip tokens until we reach a statement boundary
+    while (parser.current.tokenType != TOKEN_EOF) {
+        if (parser.previous.tokenType == TOKEN_SEMICOLON)
+            return;
+
+        switch (parser.current.tokenType) {
+            case TOKEN_CLASS:
+            case TOKEN_FUN:
+            case TOKEN_VAR:
+            case TOKEN_FOR:
+            case TOKEN_IF:
+            case TOKEN_WHILE:
+            case TOKEN_PRINT:
+            case TOKEN_RETURN:
+                return;
+
+            default:;
+        }
+    }
+}
+
 static void declaration(void) {
-    statement();
+    if (match(TOKEN_VAR)) {
+        varDeclaration();
+    } else {
+        statement();
+    }
 }
 
 static void statement(void) {
     if (match(TOKEN_PRINT)) {
         printStatement();
+    } else {
+        expressionStatement();
     }
 }
 
@@ -374,6 +430,19 @@ static void parsePrecedence(Precedence precedence) {
         ParseFn infixFn = getRule(parser.previous.tokenType)->infix;
         infixFn();
     }
+}
+
+static uint8_t identifierConstant(Token* name) {
+    return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
+}
+
+static uint8_t parseVariable(const char* errorMsg) {
+    consume(TOKEN_IDENTIFIER, errorMsg);
+    return identifierConstant(&parser.previous);
+}
+
+static void defineVariable(uint8_t global) {
+    emitBytes(OP_DEFINE_GLOBAL, global);
 }
 
 static ParseRule* getRule(TokenType tokenType) {

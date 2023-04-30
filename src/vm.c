@@ -37,10 +37,12 @@ static void runtimeError(const char* format, ...) {
 void initVm(void) {
     resetStack();
     vm.objects = NULL;
+    initTable(&vm.globals);
     initTable(&vm.strings);
 }
 
 void freeVm(void) {
+    freeTable(&vm.globals);
     freeTable(&vm.strings);
     freeObjects();
 }
@@ -92,6 +94,8 @@ static InterpretResult run(void) {
 // reads next byte from bytecode and uses that as an
 // index in the Value's constant table
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
+
+#define READ_STRING() AS_STRING(READ_CONSTANT())
 
 // order is critical; left operand gets pushed before the right operand
 // perform type checking and conversion
@@ -192,6 +196,18 @@ static InterpretResult run(void) {
                 push(BOOL_VAL(false));
                 break;
 
+            // expresssion evaluates the expresssion and discards the result
+            case OP_POP:
+                pop();
+                break;
+
+            case OP_DEFINE_GLOBAL: {
+                ObjString* name = READ_STRING();
+                tableSet(&vm.globals, name, peek(0));
+                pop();
+                break;
+            }
+
             case OP_EQUAL: {
                 Value b = pop();
                 Value a = pop();
@@ -211,6 +227,7 @@ static InterpretResult run(void) {
 
 #undef READ_BYTE
 #undef READ_CONSTANT
+#undef READ_STRING
 #undef BINARY_OP
 }
 

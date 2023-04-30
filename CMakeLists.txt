@@ -30,7 +30,7 @@ elseif(CMAKE_BUILD_TYPE STREQUAL Release)
 endif()
 
 # should also enable verbosity when using Ninja (https://github.com/ninja-build/ninja/issues/900)
-# otherwise, passing `--verbose` when invoking build should suffice 
+# otherwise, passing `--verbose` when invoking build should suffice
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # All corresponding source files
