@@ -276,6 +276,7 @@ static void printStatement(void) {
     emitByte(OP_PRINT);
 }
 
+// synchronize to avoid cascading compiler errors
 static void synchronize(void) {
     parser.panicMode = false;
 
@@ -305,6 +306,10 @@ static void declaration(void) {
         varDeclaration();
     } else {
         statement();
+    }
+
+    if (parser.panicMode) {
+        synchronize();
     }
 }
 
