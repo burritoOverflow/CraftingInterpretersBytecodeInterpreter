@@ -3,7 +3,6 @@
 #include <stdlib.h>
 
 #include "chunk.h"
-#include "common.h"
 #include "compiler.h"
 #include "scanner.h"
 #include "value.h"
@@ -52,6 +51,7 @@ Chunk* compilingChunk;
 
 // forward declarations
 static ParseRule* getRule(TokenType type);
+
 static void parsePrecedence(Precedence precedence);
 
 static Chunk* currentChunk(void) {
@@ -59,7 +59,7 @@ static Chunk* currentChunk(void) {
 }
 
 static void errorAt(Token* token, const char* errorMsg) {
-    // additional errors are supressed once panicMode is started
+    // additional errors are suppressed once panicMode is started
     if (parser.panicMode)
         return;
 
@@ -128,7 +128,7 @@ static uint8_t makeConstant(Value value) {
     // get the index back from the constant table
     const int constant = addConstant(currentChunk(), value);
 
-    // if too large, we'r at the limit for constants
+    // if too large, we're at the limit for constants
     if (constant > UINT8_MAX) {
         error("Too many constants in one chunk");
         return 0;
@@ -191,7 +191,7 @@ static void binary(void) {
 
 // emit the byte for the corresponding literal tokentype
 static void literal(void) {
-    // parsePrecedence has already consumed the keyword token
+    // parsePrecedence has already consumed the keyword token,
     //  so we'll just output the proper instruction
     switch (parser.previous.tokenType) {
         case TOKEN_FALSE:
@@ -234,7 +234,7 @@ static void number(void) {
     emitConstant(NUMBER_VAL(value));
 }
 
-static void string() {
+static void string(void) {
     // avoid the leading and trailing `"`
     ObjString* objStr = copyString(parser.previous.start + 1, parser.previous.length - 2);
     Value value = OBJ_VAL(objStr);

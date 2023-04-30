@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "common.h"
 #include "compiler.h"
 #include "debug.h"
 #include "memory.h"
@@ -28,7 +27,7 @@ static void runtimeError(const char* format, ...) {
 
     const size_t instruction = vm.ip - vm.chunk->code - 1;
 
-    // for reporting the line where the error occured
+    // for reporting the line where the error occurred
     const int line = vm.chunk->lines[instruction];
     fprintf(stderr, "[line %d] in script\n", line);
 
@@ -60,7 +59,7 @@ Value pop(void) {
 }
 
 // Get a value from the vm's stack (but do not pop it)
-// distance determines the depth of the stack from where an Value is retrieved
+// distance determines the depth of the stack from where a Value is retrieved
 static Value peek(int distance) {
     return vm.stackTop[-1 - distance];
 }
@@ -119,8 +118,7 @@ static InterpretResult run(void) {
         disassembleInstruction(vm.chunk, (int)(vm.ip - vm.chunk->code));
 #endif
 
-        uint8_t instruction;
-        switch (instruction = READ_BYTE()) {
+        switch (READ_BYTE()) {
             case OP_ADD: {
                 if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
                     concatenate();

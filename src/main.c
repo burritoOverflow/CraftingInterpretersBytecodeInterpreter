@@ -1,11 +1,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
-#include "chunk.h"
-#include "common.h"
-#include "debug.h"
 #include "vm.h"
 
 static void repl(void) {
@@ -22,7 +18,7 @@ static void repl(void) {
 }
 
 // read the file's contents (at `path`) into a buffer and return the buffer to
-// the caller caller is responsible for deallocating the buffer
+// the caller; the caller is responsible for deallocating the buffer
 static char* readFile(const char* path) {
     FILE* file = fopen(path, "rb");
     if (file == NULL) {

@@ -30,7 +30,7 @@ typedef struct {
     int count;
     int capacity;
     uint8_t* code;
-    int* lines;  // store the line numbers in indicies corresponding to the instructions
+    int* lines;  // store the line numbers in indices corresponding to the instructions
     ValueArray constants;
 } Chunk;
 

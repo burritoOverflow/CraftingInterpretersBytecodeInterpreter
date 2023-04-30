@@ -50,7 +50,7 @@ void printValue(Value value) {
     }
 }
 
-// chek for equality given two Values
+// check for equality given two Values
 bool valuesEqual(Value a, Value b) {
     if (a.type != b.type)
         return false;

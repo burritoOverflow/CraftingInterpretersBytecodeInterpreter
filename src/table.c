@@ -1,8 +1,6 @@
-#include <stdlib.h>
 #include <string.h>
 
 #include "memory.h"
-#include "object.h"
 #include "table.h"
 #include "value.h"
 
@@ -98,7 +96,7 @@ static void adjustCapacity(Table* table, int capacity) {
 // add `key` : `value` pair to table's entries; return true if the
 // `key` is not already in the table's entries
 bool tableSet(Table* table, ObjString* key, Value value) {
-    // determine if the array size is adequate; allocate addtl capacity if needed
+    // determine if the array size is adequate; allocate additional capacity if needed
     if (table->count + 1 > table->capacity * TABLE_MAX_CAPACITY) {
         const int newCapacity = GROW_CAPACITY(table->capacity);
         adjustCapacity(table, newCapacity);
