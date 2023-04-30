@@ -40,6 +40,7 @@ set(SOURCES
     src/object.c
     src/debug.c
     src/memory.c
+    src/table.c
     src/value.c
     src/main.c
 )

@@ -38,9 +38,11 @@ static void runtimeError(const char* format, ...) {
 void initVm(void) {
     resetStack();
     vm.objects = NULL;
+    initTable(&vm.strings);
 }
 
 void freeVm(void) {
+    freeTable(&vm.strings);
     freeObjects();
 }
 
@@ -68,7 +70,8 @@ static bool isFalsey(Value value) {
     return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
 
-static void concatenate() {
+// pop strings off stack and push the concatenated result
+static void concatenate(void) {
     ObjString* b = AS_STRING(pop());
     ObjString* a = AS_STRING(pop());
 
@@ -78,6 +81,7 @@ static void concatenate() {
     memcpy(chars + a->length, b->chars, b->length);
     chars[length] = '\0';
 
+    // characters are already allocated; allow `result` to take ownership
     ObjString* result = takeString(chars, length);
     push(OBJ_VAL(result));
 }

@@ -241,6 +241,7 @@ static void string() {
     emitConstant(value);
 }
 
+// emit a byte for the corresponding unary prefix expression
 static void unary(void) {
     // leading '-' has been previously consumed
     TokenType operatorType = parser.previous.tokenType;
@@ -250,21 +251,24 @@ static void unary(void) {
 
     // emit the operator instruction
     switch (operatorType) {
+        // `!`
         case TOKEN_BANG:
             emitByte(OP_NOT);
             break;
 
+        // `-`
         case TOKEN_MINUS:
             emitByte(OP_NEGATE);
             break;
-            // unreachable
+
+        // unreachable
         default:
             return;
     }
 }
 
 // prefixFunc, infixFunc, precedence
-const ParseRule rules[] = {
+ParseRule rules[] = {
     [TOKEN_LEFT_PAREN] = {grouping, NULL, PREC_NONE},
     [TOKEN_RIGHT_PAREN] = {NULL, NULL, PREC_NONE},
     [TOKEN_LEFT_BRACE] = {NULL, NULL, PREC_NONE},
@@ -315,9 +319,10 @@ static void parsePrecedence(Precedence precedence) {
     // get the prefix parser for the current token
     ParseFn prefixFn = getRule(parser.previous.tokenType)->prefix;
     if (prefixFn == NULL) {
-        error("Expect expression");
+        error("Expect expression.");
         return;
     }
+
     prefixFn();
 
     while (precedence <= getRule(parser.current.tokenType)->precedence) {
