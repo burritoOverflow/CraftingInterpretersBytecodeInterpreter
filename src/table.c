@@ -31,6 +31,7 @@ static Entry* findEntry(Entry* entries, int capacity, ObjString* key) {
     // eventually find an empty bucket
     for (;;) {
         Entry* entry = &entries[index];
+
         if (entry->key == NULL) {
             if (IS_NIL(entry->value)) {
                 // empty entry
@@ -94,20 +95,22 @@ static void adjustCapacity(Table* table, int capacity) {
     table->capacity = capacity;
 }
 
+// add `key` : `value` pair to table's entries; return true if the
+// `key` is not already in the table's entries
 bool tableSet(Table* table, ObjString* key, Value value) {
     // determine if the array size is adequate; allocate addtl capacity if needed
     if (table->count + 1 > table->capacity * TABLE_MAX_CAPACITY) {
-        int newCapacity = GROW_CAPACITY(table->capacity);
+        const int newCapacity = GROW_CAPACITY(table->capacity);
         adjustCapacity(table, newCapacity);
     }
 
     Entry* entry = findEntry(table->entries, table->capacity, key);
 
     // no existing entry for this key
-    bool isNewKey = entry->key == NULL;
+    const bool isNewKey = entry->key == NULL;
 
     // when replacing a tombstone with a new entry the bucket is already accounted for,
-    // so we won't increment
+    // so we won't increment (if !IS_NIL, the entry is a tombstone)
     if (isNewKey && IS_NIL(entry->value))
         table->count++;
 
@@ -116,12 +119,15 @@ bool tableSet(Table* table, ObjString* key, Value value) {
     return isNewKey;
 }
 
+// delete `key` from `table` and set the entry to be a tombstone
 bool tableDelete(Table* table, ObjString* key) {
     if (table->count == 0)
         return false;
 
     // locate the entry that corresponds to the key
     Entry* entry = findEntry(table->entries, table->capacity, key);
+
+    // nothing to delete
     if (entry->key == NULL)
         return false;
 
