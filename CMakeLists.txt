@@ -13,7 +13,8 @@ endif()
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 # Omitting Werror during initial development for ease of checkin
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wpedantic")
+# Discussion on compiler flags: (https://nullprogram.com/blog/2023/04/29/)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wpedantic -Wconversion -Wno-sign-conversion -fsanitize=address,undefined")
 
 # requires 3.21 for c17
 set(CMAKE_C_STANDARD 17)
@@ -29,6 +30,7 @@ elseif(CMAKE_BUILD_TYPE STREQUAL Release)
 endif()
 
 # should also enable verbosity when using Ninja (https://github.com/ninja-build/ninja/issues/900)
+# otherwise, passing `--verbose` when invoking build should suffice 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # All corresponding source files
