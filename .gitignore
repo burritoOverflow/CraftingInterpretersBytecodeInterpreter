@@ -10,6 +10,7 @@ compile_commands.json
 CTestTestfile.cmake
 _deps
 build/
+cmake-build-debug/
 Build/
 *.swp
 *.ninja
@@ -72,3 +73,5 @@ build_debug/
 build-debug/
 build_release/
 build-debug/bin/clox_bytecode_interpreter
+
+.idea/

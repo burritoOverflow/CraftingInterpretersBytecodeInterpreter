@@ -193,7 +193,7 @@ static TokenType identifierType(void) {
             return checkKeyword(1, 4, "hile", TOKEN_WHILE);
     }
 
-    // not a keyword, therefore identifer
+    // not a keyword, therefore identifier
     return TOKEN_IDENTIFIER;
 }
 
