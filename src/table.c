@@ -160,7 +160,7 @@ ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t
             if (IS_NIL(entry->value))
                 return NULL;
         } else if (entry->key->length == length && entry->key->hash == hash &&
-                   memcmp(entry->key->chars, chars, length)) {
+                   memcmp(entry->key->chars, chars, length) == 0) {
             // match found
             return entry->key;
         }

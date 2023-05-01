@@ -24,6 +24,7 @@ static ObjString* allocateObjString(char* chars, int length, uint32_t hash) {
     string->length = length;
     string->chars = chars;
     string->hash = hash;
+
     // whenever a new string is created add to the vm's strings table
     tableSet(&vm.strings, string, NIL_VAL);
     return string;
@@ -43,6 +44,13 @@ static uint32_t hashString(const char* key, int length) {
 // (newly allocated object owns the provided `chars`)
 ObjString* takeString(char* chars, int length) {
     uint32_t hash = hashString(chars, length);
+    ObjString* interned = tableFindString(&vm.strings, chars, length, hash);
+
+    if (interned != NULL) {
+        FREE_ARRAY(char, chars, length + 1);
+        return interned;
+    }
+
     return allocateObjString(chars, length, hash);
 }
 
@@ -51,6 +59,10 @@ ObjString* takeString(char* chars, int length) {
 // used when cannot obtain ownership of `chars` provided
 ObjString* copyString(const char* chars, int length) {
     uint32_t hash = hashString(chars, length);
+    ObjString* interned = tableFindString(&vm.strings, chars, length, hash);
+
+    if (interned != NULL)
+        return interned;
 
     // allocate length of `chars` and copy the contents to allocated mem
     char* heapChars = ALLOCATE(char, length + 1);

@@ -75,3 +75,6 @@ build_release/
 build-debug/bin/clox_bytecode_interpreter
 
 .idea/
+
+# for now we'll ignore test files
+*.lox

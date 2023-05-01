@@ -70,6 +70,8 @@ static void statement(void);
 
 static void defineVariable(uint8_t global);
 
+static uint8_t identifierConstant(Token* name);
+
 static uint8_t parseVariable(const char* errorMsg);
 
 static void parsePrecedence(Precedence precedence);
@@ -248,8 +250,7 @@ static void expression(void) {
     parsePrecedence(PREC_ASSIGNMENT);
 }
 
-//
-static void varDeclaration() {
+static void varDeclaration(void) {
     uint8_t global = parseVariable("Expect variable name.");
 
     if (match(TOKEN_EQUAL)) {
@@ -257,12 +258,10 @@ static void varDeclaration() {
     } else {
         emitByte(OP_NIL);  // de-sugars into var a = nil;
     }
-
-    consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration");
+    consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
 
     defineVariable(global);
 }
-
 // an expression followed by a semicolon (expression where statement is expected)
 static void expressionStatement(void) {
     expression();
@@ -345,6 +344,14 @@ static void string(void) {
     Value value = OBJ_VAL(objStr);
     emitConstant(value);
 }
+static void namedVariable(Token name) {
+    uint8_t arg = identifierConstant(&name);
+    emitBytes(OP_GET_GLOBAL, arg);
+}
+
+static void variable(void) {
+    namedVariable(parser.previous);
+}
 
 // emit a byte for the corresponding unary prefix expression
 static void unary(void) {
@@ -393,7 +400,7 @@ ParseRule rules[] = {
     [TOKEN_GREATER_EQUAL] = {NULL, binary, PREC_COMPARISON},
     [TOKEN_LESS] = {NULL, binary, PREC_COMPARISON},
     [TOKEN_LESS_EQUAL] = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_IDENTIFIER] = {NULL, NULL, PREC_NONE},
+    [TOKEN_IDENTIFIER] = {variable, NULL, PREC_NONE},
     [TOKEN_STRING] = {string, NULL, PREC_NONE},
     [TOKEN_NUMBER] = {number, NULL, PREC_NONE},
     [TOKEN_AND] = {NULL, NULL, PREC_NONE},
@@ -441,8 +448,8 @@ static uint8_t identifierConstant(Token* name) {
     return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
 }
 
-static uint8_t parseVariable(const char* errorMsg) {
-    consume(TOKEN_IDENTIFIER, errorMsg);
+static uint8_t parseVariable(const char* errorMessage) {
+    consume(TOKEN_IDENTIFIER, errorMessage);
     return identifierConstant(&parser.previous);
 }
 
