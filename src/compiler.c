@@ -47,7 +47,7 @@ typedef enum {
     PREC_PRIMARY
 } Precedence;
 
-typedef void (*ParseFn)(void);
+typedef void (*ParseFn)(bool canAssign);
 
 // covered at the start of section 17.6
 typedef struct {
@@ -72,7 +72,7 @@ static void defineVariable(uint8_t global);
 
 static uint8_t identifierConstant(Token* name);
 
-static uint8_t parseVariable(const char* errorMsg);
+static uint8_t parseVariable(const char* errMsg);
 
 static void parsePrecedence(Precedence precedence);
 
@@ -182,7 +182,7 @@ static void endCompiler(void) {
 
 // responsible for compiling the right operand, and emits the
 // bytecode that performs the binary operation
-static void binary(void) {
+static void binary(bool canAssign) {
     TokenType operatorType = parser.previous.tokenType;
     ParseRule* rule = getRule(operatorType);
     parsePrecedence(rule->precedence + 1);
@@ -224,7 +224,7 @@ static void binary(void) {
 }
 
 // emit the byte for the corresponding literal token type
-static void literal(void) {
+static void literal(bool canAssign) {
     // parsePrecedence has already consumed the keyword token,
     //  so we'll just output the proper instruction
     switch (parser.previous.tokenType) {
@@ -320,7 +320,7 @@ static void statement(void) {
     }
 }
 
-static void grouping(void) {
+static void grouping(bool canAssign) {
     // assumes the initial '(' was already consumed
     expression();
     consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
@@ -333,28 +333,34 @@ static void emitConstant(Value value) {
 
 // parse the value from the parser's previous location and emit a constant with
 // the parsed value
-static void number(void) {
+static void number(bool canAssign) {
     const double value = strtod(parser.previous.start, NULL);
     emitConstant(NUMBER_VAL(value));
 }
 
-static void string(void) {
+static void string(bool canAssign) {
     // avoid the leading and trailing `"`
     ObjString* objStr = copyString(parser.previous.start + 1, parser.previous.length - 2);
     Value value = OBJ_VAL(objStr);
     emitConstant(value);
 }
-static void namedVariable(Token name) {
-    uint8_t arg = identifierConstant(&name);
-    emitBytes(OP_GET_GLOBAL, arg);
+static void namedVariable(Token name, bool canAssign) {
+    const uint8_t arg = identifierConstant(&name);
+
+    if (canAssign && match(TOKEN_EQUAL)) {
+        expression();
+        emitBytes(OP_SET_GLOBAL, arg);
+    } else {
+        emitBytes(OP_GET_GLOBAL, arg);
+    }
 }
 
-static void variable(void) {
-    namedVariable(parser.previous);
+static void variable(bool canAssign) {
+    namedVariable(parser.previous, canAssign);
 }
 
 // emit a byte for the corresponding unary prefix expression
-static void unary(void) {
+static void unary(bool canAssign) {
     // leading '-' has been previously consumed
     TokenType operatorType = parser.previous.tokenType;
 
@@ -435,24 +441,30 @@ static void parsePrecedence(Precedence precedence) {
         return;
     }
 
-    prefixFn();
+    const bool canAssign = precedence <= PREC_ASSIGNMENT;
+    prefixFn(canAssign);
 
     while (precedence <= getRule(parser.current.tokenType)->precedence) {
         advance();
         ParseFn infixFn = getRule(parser.previous.tokenType)->infix;
-        infixFn();
+        infixFn(canAssign);
     }
+
+    if (canAssign && match(TOKEN_EQUAL))
+        error("Invalid assignment target.");
 }
 
+// takes the given token, adds the lexeme to the constant table and returns the corresponding index
 static uint8_t identifierConstant(Token* name) {
     return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
 }
 
-static uint8_t parseVariable(const char* errorMessage) {
-    consume(TOKEN_IDENTIFIER, errorMessage);
+static uint8_t parseVariable(const char* errMsg) {
+    consume(TOKEN_IDENTIFIER, errMsg);
     return identifierConstant(&parser.previous);
 }
 
+// output instruction for defining the new variable and store the initial value
 static void defineVariable(uint8_t global) {
     emitBytes(OP_DEFINE_GLOBAL, global);
 }

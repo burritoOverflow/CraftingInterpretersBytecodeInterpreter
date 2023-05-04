@@ -219,6 +219,18 @@ static InterpretResult run(void) {
                 break;
             }
 
+            case OP_SET_GLOBAL: {
+                ObjString* name = READ_STRING();
+                // set the value in the table; if did not previously exist, this is an error (set
+                // requires an existing variable)
+                if (tableSet(&vm.globals, name, peek(0))) {
+                    tableDelete(&vm.globals, name);
+                    runtimeError("Undefined variable '%s'.", name->chars);
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+                break;
+            }
+
             case OP_EQUAL: {
                 Value b = pop();
                 Value a = pop();

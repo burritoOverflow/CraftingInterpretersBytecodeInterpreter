@@ -100,7 +100,11 @@ static void skipWhitespace(void) {
             // consume a newline
             case '\n':
                 scanner.line++;
-                advance();
+
+                // consume additional newlines
+                while (peek() == '\n') {
+                    advance();
+                }
                 return;
 
             case '/':
