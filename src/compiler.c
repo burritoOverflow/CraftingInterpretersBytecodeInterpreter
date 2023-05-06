@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include "chunk.h"
+#include "common.h"
 #include "compiler.h"
 #include "scanner.h"
 #include "value.h"
@@ -19,6 +20,8 @@
                | returnStmt
                | whileStmt
                | block ;
+
+block -> "{" declaration "}" ;
 
 declaration    → classDecl
               | funDecl
@@ -59,7 +62,21 @@ typedef struct {
         precedence;  // the precedence of an infix expression that uses that token as an operator
 } ParseRule;
 
+typedef struct {
+    Token name;  // identifier's lexeme
+    int depth;   // the scope depth of the block, where the local was declared
+} Local;
+
+typedef struct {
+    Local
+        locals[UINT8_COUNT];  // store all locals that are in scope during each point in compilation
+    int localCount;           // number of locals in use
+    int scopeDepth;
+} Compiler;
+
 Parser parser;
+
+Compiler* currentCompiler = NULL;
 
 Chunk* compilingChunk;
 
@@ -67,6 +84,8 @@ Chunk* compilingChunk;
 static ParseRule* getRule(TokenType type);
 
 static void statement(void);
+
+static void declaration(void);
 
 static void defineVariable(uint8_t global);
 
@@ -143,6 +162,8 @@ static bool match(TokenType type) {
     return true;
 }
 
+// Write the given byte (OPCODE or OPERAND to and instruction
+// provide the line information so errors are associated with the line
 static void emitByte(uint8_t byte) {
     writeChunk(currentChunk(), byte, parser.previous.line);
 }
@@ -178,6 +199,16 @@ static void endCompiler(void) {
         disassembleChunk(currentChunk(), "code");
     }
 #endif
+}
+
+// all that's done to create a scope is to increment the current depth
+static void beginScope(void) {
+    currentCompiler->scopeDepth++;
+}
+
+// and the opposite for ending a scope
+static void endScope(void) {
+    currentCompiler->scopeDepth--;
 }
 
 // responsible for compiling the right operand, and emits the
@@ -250,6 +281,14 @@ static void expression(void) {
     parsePrecedence(PREC_ASSIGNMENT);
 }
 
+static void block(void) {
+    while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
+        declaration();
+    }
+
+    consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.");
+}
+
 static void varDeclaration(void) {
     uint8_t global = parseVariable("Expect variable name.");
 
@@ -315,6 +354,10 @@ static void declaration(void) {
 static void statement(void) {
     if (match(TOKEN_PRINT)) {
         printStatement();
+    } else if (match(TOKEN_LEFT_BRACE)) {
+        beginScope();
+        block();
+        endScope();
     } else {
         expressionStatement();
     }
@@ -329,6 +372,13 @@ static void grouping(bool canAssign) {
 // emit a constant for the `value` provided
 static void emitConstant(Value value) {
     emitBytes(OP_CONSTANT, makeConstant(value));
+}
+
+// set the initial state of `compiler` to a zero-state.
+static void initCompiler(Compiler* compiler) {
+    compiler->localCount = 0;
+    compiler->scopeDepth = 0;
+    currentCompiler = compiler;
 }
 
 // parse the value from the parser's previous location and emit a constant with
@@ -475,6 +525,10 @@ static ParseRule* getRule(TokenType tokenType) {
 
 bool compile(const char* source, Chunk* chunk) {
     initScanner(source);
+
+    Compiler compiler;
+    initCompiler(&compiler);
+
     // module variable chunk initialized before writing bytecode
     compilingChunk = chunk;
 
