@@ -32,7 +32,7 @@ typedef enum {
     OP_RETURN,
 } OpCode;
 
-// Dynamic array for the instructions
+// Dynamic array for the instructions; the chunk of code run by the VM
 typedef struct {
     int count;
     int capacity;

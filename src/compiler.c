@@ -69,10 +69,10 @@ typedef struct {
 } Local;
 
 typedef struct {
-    Local
-        locals[UINT8_COUNT];  // store all locals that are in scope during each point in compilation
-    int localCount;           // number of locals in use
-    int scopeDepth;
+    Local locals[UINT8_COUNT];  // store all locals that are in scope during each point in
+                                // compilation, ordered by declarations in code
+    int localCount;             // number of locals in use
+    int scopeDepth;             // 0 is global scope, etc
 } Compiler;
 
 Parser parser;
@@ -97,6 +97,7 @@ static uint8_t parseVariable(const char* errMsg);
 static void parsePrecedence(Precedence precedence);
 
 static int resolveLocal(Compiler* compiler, Token* name);
+// end forward declarations
 
 static Chunk* currentChunk(void) {
     return compilingChunk;
@@ -370,6 +371,8 @@ static void statement(void) {
     if (match(TOKEN_PRINT)) {
         printStatement();
     } else if (match(TOKEN_LEFT_BRACE)) {
+        // we've encountered a block
+        // create a scope and evalute statements w/in the block
         beginScope();
         block();
         endScope();
@@ -413,7 +416,7 @@ static void namedVariable(Token name, bool canAssign) {
     uint8_t getOp, setOp;
     int arg = resolveLocal(currentCompiler, &name);
 
-    // local found
+    // local found with `name`, so emit instructions for dealing with a local var
     if (arg != -1) {
         getOp = OP_GET_LOCAL;
         setOp = OP_SET_LOCAL;

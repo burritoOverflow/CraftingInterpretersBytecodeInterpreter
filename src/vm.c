@@ -87,6 +87,7 @@ static void concatenate(void) {
     push(OBJ_VAL(result));
 }
 
+// reads and executes a bytecode instruction
 static InterpretResult run(void) {
 // read the byte currently pointed to by the IP, and advance IP
 #define READ_BYTE() (*vm.ip++)
@@ -111,6 +112,7 @@ static InterpretResult run(void) {
     } while (false)
 
     for (;;) {
+// disassemble and print each instruction before executing it
 #ifdef DEBUG_TRACE_EXECUTION
         printf("        ");
         for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
@@ -119,9 +121,13 @@ static InterpretResult run(void) {
             printf(" ]");
         }
         printf("\n");
+
+        // convert `ip` back to a relative offset from the start of the bytecode
+        // as `disassembleInstruction` takes an integer byte offset
         disassembleInstruction(vm.chunk, (int)(vm.ip - vm.chunk->code));
 #endif
 
+        // each condition implements the opcode's behavior
         switch (READ_BYTE()) {
             case OP_ADD: {
                 if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
@@ -220,6 +226,8 @@ static InterpretResult run(void) {
             }
 
             case OP_SET_LOCAL: {
+                // take the assigned value from the top of the stack and assigns it to the stack
+                // slot pertaining to the local variable
                 uint8_t slot = READ_BYTE();
                 vm.stack[slot] = peek(0);
                 break;
@@ -281,6 +289,7 @@ InterpretResult interpret(const char* source) {
     vm.chunk = &chunk;
     vm.ip = vm.chunk->code;
 
+    // evaluate the compiled bytecode
     InterpretResult result = run();
 
     freeChunk(&chunk);
