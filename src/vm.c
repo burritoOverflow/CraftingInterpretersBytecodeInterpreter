@@ -201,6 +201,13 @@ static InterpretResult run(void) {
                 pop();
                 break;
 
+            case OP_GET_LOCAL: {
+                uint8_t slot = READ_BYTE();
+                // load value from index and push on stack where later instructions can find it
+                push(vm.stack[slot]);
+                break;
+            }
+
             case OP_GET_GLOBAL: {
                 ObjString* name = READ_STRING();
                 Value value;
@@ -209,6 +216,12 @@ static InterpretResult run(void) {
                     return INTERPRET_RUNTIME_ERROR;
                 }
                 push(value);
+                break;
+            }
+
+            case OP_SET_LOCAL: {
+                uint8_t slot = READ_BYTE();
+                vm.stack[slot] = peek(0);
                 break;
             }
 
