@@ -55,12 +55,12 @@ typedef void (*ParseFn)(bool canAssign);
 
 // covered at the start of section 17.6
 typedef struct {
-    ParseFn
-        prefix;  // the function to compile a prefix expression starting with a token of that type
-    ParseFn infix;  // the function to compile an infix expression whose left operand is followed by
-                    // a token of that type
-    Precedence
-        precedence;  // the precedence of an infix expression that uses that token as an operator
+    ParseFn prefix;         // the function to compile a prefix expression starting with a
+                            // token of that type
+    ParseFn infix;          // the function to compile an infix expression whose left
+                            // operand is followed by a token of that type
+    Precedence precedence;  // the precedence of an infix expression that uses that
+                            // token as an operator
 } ParseRule;
 
 typedef struct {
@@ -69,8 +69,9 @@ typedef struct {
 } Local;
 
 typedef struct {
-    Local locals[UINT8_COUNT];  // store all locals that are in scope during each point in
-                                // compilation, ordered by declarations in code
+    Local locals[UINT8_COUNT];  // store all locals that are in scope during each
+                                // point in compilation, ordered by declarations in
+                                // code
     int localCount;             // number of locals in use
     int scopeDepth;             // 0 is global scope, etc
 } Compiler;
@@ -97,6 +98,8 @@ static uint8_t parseVariable(const char* errMsg);
 static void parsePrecedence(Precedence precedence);
 
 static int resolveLocal(Compiler* compiler, Token* name);
+
+static void patchJump(int offset);
 // end forward declarations
 
 static Chunk* currentChunk(void) {
@@ -177,12 +180,23 @@ static void emitBytes(uint8_t byte1, uint8_t byte2) {
     emitByte(byte2);
 }
 
+// emit a bytecode operand and write placeholder for the jump offset
+static int emitJump(uint8_t instruction) {
+    emitByte(instruction);
+
+    // two bytes for the jump offset operand (placeholder operand)
+    emitByte(0xff);
+    emitByte(0xff);
+
+    return currentChunk()->count - 2;
+}
+
 static void emitReturn(void) {
     emitByte(OP_RETURN);
 }
 
-// add the value to the constant table and emit `OP_CONSTANT` that pushes it into
-// the stack at runtime
+// add the value to the constant table and emit `OP_CONSTANT` that pushes it
+// into the stack at runtime
 static uint8_t makeConstant(Value value) {
     // get the index back from the constant table
     const int constant = addConstant(currentChunk(), value);
@@ -210,7 +224,8 @@ static void beginScope(void) {
     currentCompiler->scopeDepth++;
 }
 
-// and the opposite for ending a scope; dispose of locals when the scope is exited
+// and the opposite for ending a scope; dispose of locals when the scope is
+// exited
 static void endScope(void) {
     currentCompiler->scopeDepth--;
 
@@ -219,7 +234,8 @@ static void endScope(void) {
     while (currentCompiler->localCount > 0 &&
            currentCompiler->locals[currentCompiler->localCount - 1].depth >
                currentCompiler->scopeDepth) {
-        // slot is no longer needed when local goes out of scope (remove from runtime stack)
+        // slot is no longer needed when local goes out of scope (remove from
+        // runtime stack)
         emitByte(OP_POP);
 
         // discard the locals by simply decrementing the count
@@ -317,11 +333,32 @@ static void varDeclaration(void) {
 
     defineVariable(global);
 }
-// an expression followed by a semicolon (expression where statement is expected)
+// an expression followed by a semicolon (expression where statement is
+// expected)
 static void expressionStatement(void) {
     expression();
     consume(TOKEN_SEMICOLON, "Expect ';' after expression");
     emitByte(OP_POP);
+}
+
+static void ifStatement(void) {
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
+    expression();
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+
+    const int thenJump = emitJump(OP_JUMP_IF_FALSE);
+    emitByte(OP_POP);
+    statement();
+
+    const int elseJump = emitJump(OP_JUMP);
+
+    patchJump(thenJump);
+    emitByte(OP_POP);
+
+    if (match(TOKEN_ELSE))
+        statement();
+
+    patchJump(elseJump);
 }
 
 static void printStatement(void) {
@@ -370,6 +407,8 @@ static void declaration(void) {
 static void statement(void) {
     if (match(TOKEN_PRINT)) {
         printStatement();
+    } else if (match(TOKEN_IF)) {
+        ifStatement();
     } else if (match(TOKEN_LEFT_BRACE)) {
         // we've encountered a block
         // create a scope and evalute statements w/in the block
@@ -390,6 +429,19 @@ static void grouping(bool canAssign) {
 // emit a constant for the `value` provided
 static void emitConstant(Value value) {
     emitBytes(OP_CONSTANT, makeConstant(value));
+}
+
+// replace the operand at the given location with the calculated jump offset
+static void patchJump(int offset) {
+    // -2 to adjust for bytecode from the jump offset itself
+    const int jump = currentChunk()->count - offset - 2;
+
+    if (jump > UINT16_MAX) {
+        error("Too much code to jump over.");
+    }
+
+    currentChunk()->code[offset] = (jump >> 8) & 0xff;
+    currentChunk()->code[offset + 1] = jump & 0xff;
 }
 
 // set the initial state of `compiler` to a zero-state.
@@ -534,7 +586,8 @@ static void parsePrecedence(Precedence precedence) {
         error("Invalid assignment target.");
 }
 
-// takes the given token, adds the lexeme to the constant table and returns the corresponding index
+// takes the given token, adds the lexeme to the constant table and returns the
+// corresponding index
 static uint8_t identifierConstant(Token* name) {
     return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
 }
@@ -577,7 +630,8 @@ static void addLocal(Token name) {
     Local* local = &currentCompiler->locals[currentCompiler->localCount++];
     local->name = name;
 
-    // special sentinel value indicating that the variable is in an "unitialized" state
+    // special sentinel value indicating that the variable is in an "unitialized"
+    // state
     local->depth = -1;
 }
 

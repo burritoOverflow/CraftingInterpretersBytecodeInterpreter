@@ -96,6 +96,9 @@ static InterpretResult run(void) {
 // index in the Value's constant table
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
 
+// read a 16bit operand from the chunk (build unsigned int from chunk)
+#define READ_SHORT() (vm.ip += 2, (uint16_t)((vm.ip[-2] << 8) | vm.ip[-1]))
+
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 
 // order is critical; left operand gets pushed before the right operand
@@ -175,6 +178,21 @@ static InterpretResult run(void) {
             case OP_PRINT: {
                 printValue(pop());
                 printf("\n");
+                break;
+            }
+
+            case OP_JUMP: {
+                uint16_t offset = READ_SHORT();
+                vm.ip += offset;
+                break;
+            }
+
+            case OP_JUMP_IF_FALSE: {
+                const uint16_t offset = READ_SHORT();
+
+                // apply the jump offset to the ip
+                if (isFalsey(peek(0)))
+                    vm.ip += offset;
                 break;
             }
 
@@ -270,6 +288,7 @@ static InterpretResult run(void) {
     }
 
 #undef READ_BYTE
+#undef READ_SHORT
 #undef READ_CONSTANT
 #undef READ_STRING
 #undef BINARY_OP
