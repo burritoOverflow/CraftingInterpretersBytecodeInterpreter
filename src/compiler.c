@@ -356,6 +356,63 @@ static void expressionStatement(void) {
     emitByte(OP_POP);
 }
 
+static void forStatement(void) {
+    // if a for statement declares a variable, it should be scoped to loop body
+    beginScope();
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
+
+    // begin initializer clause
+    if (match(TOKEN_SEMICOLON)) {
+        // no initializer
+    } else if (match(TOKEN_VAR)) {
+        varDeclaration();
+    } else {
+        expressionStatement();
+    }
+
+    int loopStart = currentChunk()->count;
+
+    // the condition expression that can exit the loop
+    int exitJump = -1;
+
+    // begin condition
+    if (!match(TOKEN_SEMICOLON)) {
+        expression();
+        consume(TOKEN_SEMICOLON, "Expect ';' after loop condition.");
+
+        // exit the loop if the condition is false
+        exitJump = emitJump(OP_JUMP_IF_FALSE);
+
+        // pop the condtion
+        emitByte(OP_POP);
+    }  // otherwise no expression present
+
+    // begin increment clause
+    if (!match(TOKEN_RIGHT_PAREN)) {
+        int bodyJump = emitJump(OP_JUMP);
+        int incrementStart = currentChunk()->count;
+        expression();
+        emitByte(OP_POP);
+        consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
+
+        emitLoop(loopStart);
+        loopStart = incrementStart;
+        patchJump(bodyJump);
+    } // no increment clause present
+
+    statement();
+    emitLoop(loopStart);
+
+    // patch the jump when there is a condition clause
+    if (exitJump != -1) {
+        patchJump(exitJump);
+        emitByte(OP_POP);  // pop the condition
+    } // otherwise, no condition was present
+
+    // end the scope for the declared variable
+    endScope();
+}
+
 static void ifStatement(void) {
     consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
     expression();
@@ -442,6 +499,8 @@ static void declaration(void) {
 static void statement(void) {
     if (match(TOKEN_PRINT)) {
         printStatement();
+    } else if (match(TOKEN_FOR)) {
+        forStatement();
     } else if (match(TOKEN_IF)) {
         ifStatement();
     } else if (match(TOKEN_WHILE)) {

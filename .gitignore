@@ -78,3 +78,5 @@ build-debug/bin/clox_bytecode_interpreter
 
 # for now we'll ignore test files
 *.lox
+
+*.log
