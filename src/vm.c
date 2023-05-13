@@ -196,6 +196,12 @@ static InterpretResult run(void) {
                 break;
             }
 
+            case OP_LOOP: {
+                const uint16_t offset = READ_SHORT();
+                vm.ip -= offset;
+                break;
+            }
+
             case OP_RETURN: {
                 // exit interpreter
                 return INTERPRET_OK;
