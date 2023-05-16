@@ -383,7 +383,7 @@ static void forStatement(void) {
         // exit the loop if the condition is false
         exitJump = emitJump(OP_JUMP_IF_FALSE);
 
-        // pop the condtion
+        // pop the condition
         emitByte(OP_POP);
     }  // otherwise no expression present
 
@@ -398,7 +398,7 @@ static void forStatement(void) {
         emitLoop(loopStart);
         loopStart = incrementStart;
         patchJump(bodyJump);
-    } // no increment clause present
+    }  // no increment clause present
 
     statement();
     emitLoop(loopStart);
@@ -407,13 +407,14 @@ static void forStatement(void) {
     if (exitJump != -1) {
         patchJump(exitJump);
         emitByte(OP_POP);  // pop the condition
-    } // otherwise, no condition was present
+    }                      // otherwise, no condition was present
 
     // end the scope for the declared variable
     endScope();
 }
 
 static void ifStatement(void) {
+    // 'if' already consumed; consume the expression in the parentheses
     consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
     expression();
     consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
@@ -708,7 +709,7 @@ static bool identifiersEqual(Token* a, Token* b) {
 
 // walk the list of identifiers in the current scope
 static int resolveLocal(Compiler* compiler, Token* name) {
-    // walk backwards so we find the last declared variable with the identifier
+    // walk backwards, so we find the last declared variable with the identifier
     for (int i = compiler->localCount - 1; i >= 0; i--) {
         Local* local = &compiler->locals[i];
 

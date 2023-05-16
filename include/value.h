@@ -31,10 +31,10 @@ typedef struct {
 #define AS_OBJ(value) ((value).as.obj)
 
 // set the corresponding value in the Value's union
-#define BOOL_VAL(value) ((Value){VAL_BOOL, {.boolean = value}})
+#define BOOL_VAL(value) ((Value){VAL_BOOL, {.boolean = (value)}})
 #define NIL_VAL ((Value){VAL_NIL, {.number = 0}})
-#define NUMBER_VAL(value) ((Value){VAL_NUMBER, {.number = value}})
-#define OBJ_VAL(object) ((Value){VAL_OBJ, {.obj = (Obj*)object}})
+#define NUMBER_VAL(value) ((Value){VAL_NUMBER, {.number = (value)}})
+#define OBJ_VAL(object) ((Value){VAL_OBJ, {.obj = (Obj*)(object)}})
 
 typedef struct {
     int capacity;

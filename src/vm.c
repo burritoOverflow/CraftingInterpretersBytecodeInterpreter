@@ -34,6 +34,7 @@ static void runtimeError(const char* format, ...) {
     resetStack();
 }
 
+// set the initial state of the vm's struct members
 void initVm(void) {
     resetStack();
     vm.objects = NULL;
@@ -41,6 +42,7 @@ void initVm(void) {
     initTable(&vm.strings);
 }
 
+// free the contents of the vm's struct members
 void freeVm(void) {
     freeTable(&vm.globals);
     freeTable(&vm.strings);
@@ -171,7 +173,8 @@ static InterpretResult run(void) {
                     return INTERPRET_RUNTIME_ERROR;
                 }
 
-                push(NUMBER_VAL(AS_NUMBER(pop())));
+                // convert, negate, and push the number
+                push(NUMBER_VAL(-AS_NUMBER(pop())));
                 break;
             }
 
@@ -190,9 +193,10 @@ static InterpretResult run(void) {
             case OP_JUMP_IF_FALSE: {
                 const uint16_t offset = READ_SHORT();
 
-                // apply the jump offset to the ip
+                // apply the jump offset to the ip, if the expression evaluates to false
                 if (isFalsey(peek(0)))
                     vm.ip += offset;
+
                 break;
             }
 
@@ -277,8 +281,10 @@ static InterpretResult run(void) {
             }
 
             case OP_EQUAL: {
-                Value b = pop();
-                Value a = pop();
+                const Value b = pop();
+                const Value a = pop();
+
+                // push the result of an equality check
                 push(BOOL_VAL(valuesEqual(a, b)));
                 break;
 
