@@ -1,24 +1,32 @@
 #ifndef CLOX_OBJECT_H
 #define CLOX_OBJECT_H
 
+#include "chunk.h"
 #include "common.h"
 #include "value.h"
 
 #define OBJ_TYPE(value) (AS_OBJ(value)->type)
 
+#define IS_FUNCTION(value) isObjType(value, OBJ_FUNCTION)
 #define IS_STRING(value) isObjType(value, OBJ_STRING)
 
+#define AS_FUNCTION(value) ((ObjFunction*)AS_OBJ(value))
 #define AS_STRING(value) ((ObjString*)AS_OBJ(value))
 #define AS_CSTRING(value) (((ObjString*)AS_OBJ(value))->chars)
 
-typedef enum {
-    OBJ_STRING,
-} ObjType;
+typedef enum { OBJ_STRING, OBJ_FUNCTION } ObjType;
 
 struct Obj {
     ObjType type;      // designation for this object's type
     struct Obj* next;  // intrusive list stores a ptr to the next object
 };
+
+typedef struct {
+    Obj obj;                  // functions are first-class, so they need to be Lox objects
+    int arity;                // number of parameters the function expects
+    Chunk chunk;              // each function has its own chunk
+    ObjString* functionName;  // the name of the function
+} ObjFunction;
 
 struct ObjString {
     Obj obj;        // strings contains the same state as Objects
@@ -26,6 +34,9 @@ struct ObjString {
     char* chars;    // the content of the string
     uint32_t hash;  // each object stores the hash code for its string
 };
+
+// create a new Lox function
+ObjFunction* newFunction();
 
 // Allocate a new `ObjString` and copy `chars` to its `chars` field
 // does not take ownership of the `chars` provided

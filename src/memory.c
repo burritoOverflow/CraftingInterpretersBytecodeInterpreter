@@ -26,6 +26,16 @@ static void freeObject(Obj* object) {
             ObjString* string = (ObjString*)object;
             FREE_ARRAY(char, string->chars, string->length + 1);
             FREE(ObjString, object);
+            break;
+        }
+
+        case OBJ_FUNCTION: {
+            // free the function itself
+            ObjFunction* function = (ObjFunction*)object;
+            // free the other memory owned by this function
+            freeChunk(&function->chunk);
+            FREE(OBJ_FUNCTION, object);
+            break;
         }
     }
 }

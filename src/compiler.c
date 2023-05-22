@@ -68,7 +68,12 @@ typedef struct {
     int depth;   // the scope depth of the block, where the local was declared
 } Local;
 
+// support both top-level code (implicit function) and declared functions
+typedef enum { TYPE_FUNCTION, TYPE_SCRIPT } FunctionType;
+
 typedef struct {
+    ObjFunction* function;
+    FunctionType FunctionType;
     Local locals[UINT8_COUNT];  // store all locals that are in scope during each
                                 // point in compilation, ordered by declarations in
                                 // code
@@ -105,7 +110,7 @@ static void and_(bool canAssign);
 // end forward declarations
 
 static Chunk* currentChunk(void) {
-    return compilingChunk;
+    return &currentCompiler->function->chunk;
 }
 
 static void errorAt(Token* token, const char* errorMsg) {
@@ -225,13 +230,19 @@ static uint8_t makeConstant(Value value) {
     return (uint8_t)constant;
 }
 
-static void endCompiler(void) {
+static ObjFunction* endCompiler(void) {
     emitReturn();
+    ObjFunction* function = currentCompiler->function;
+
 #ifdef DEBUG_PRINT_CODE
     if (!parser.hadError) {
-        disassembleChunk(currentChunk(), "code");
+        // implicit top-level function does not have a name (unlike-user defined functions)
+        disassembleChunk(currentChunk(), function->functionName != NULL
+                                             ? function->functionName->chars
+                                             : "<script>");
     }
 #endif
+    return function;
 }
 
 // all that's done to create a scope is to increment the current depth
@@ -542,10 +553,18 @@ static void patchJump(const int offset) {
 }
 
 // set the initial state of `compiler` to a zero-state.
-static void initCompiler(Compiler* compiler) {
+static void initCompiler(Compiler* compiler, FunctionType FunctionType) {
+    compiler->function = NULL;
+    compiler->FunctionType = FunctionType;
     compiler->localCount = 0;
     compiler->scopeDepth = 0;
+    compiler->function = newFunction();
     currentCompiler = compiler;
+
+    Local* local = &currentCompiler->locals[currentCompiler->localCount++];
+    local->depth = 0;
+    local->name.start = "";
+    local->name.length = 0;
 }
 
 // parse the value from the parser's previous location and emit a constant with
@@ -806,14 +825,11 @@ static ParseRule* getRule(TokenType tokenType) {
     return &rules[tokenType];
 }
 
-bool compile(const char* source, Chunk* chunk) {
+ObjFunction* compile(const char* source) {
     initScanner(source);
 
     Compiler compiler;
-    initCompiler(&compiler);
-
-    // module variable chunk initialized before writing bytecode
-    compilingChunk = chunk;
+    initCompiler(&compiler, TYPE_SCRIPT);
 
     // initialize fields when compilation starts
     parser.hadError = false;
@@ -823,7 +839,8 @@ bool compile(const char* source, Chunk* chunk) {
     while (!match(TOKEN_EOF)) {
         declaration();
     }
-    endCompiler();
 
-    return !parser.hadError;
+    ObjFunction* function = endCompiler();
+
+    return parser.hadError ? NULL : function;
 }

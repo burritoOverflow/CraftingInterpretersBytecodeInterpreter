@@ -78,5 +78,6 @@ build-debug/bin/clox_bytecode_interpreter
 
 # for now we'll ignore test files
 *.lox
-
 *.log
+.vscode/c_cpp_properties.json
+.vscode/settings.json
