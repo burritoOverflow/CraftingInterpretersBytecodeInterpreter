@@ -72,6 +72,8 @@ typedef struct {
 typedef enum { TYPE_FUNCTION, TYPE_SCRIPT } FunctionType;
 
 typedef struct {
+    struct Compiler*
+        enclosing;  // each Compiler points to the Compiler for the function that encloses it
     ObjFunction* function;
     FunctionType FunctionType;
     Local locals[UINT8_COUNT];  // store all locals that are in scope during each
@@ -107,14 +109,23 @@ static int resolveLocal(Compiler* compiler, Token* name);
 static void patchJump(int offset);
 
 static void and_(bool canAssign);
+
+static void markInitialized(void);
+
+static void initCompiler(Compiler* compiler, FunctionType FunctionType);
+
 // end forward declarations
 
 static Chunk* currentChunk(void) {
+    /* create and return a function that contains the compiled top-level code
+        current chunk is always the chunk owned by the function
+        we're in the middle of compiling
+    */
     return &currentCompiler->function->chunk;
 }
 
 static void errorAt(Token* token, const char* errorMsg) {
-    // additional errors are suppressed once panicMode is started
+    // subsequent errors are suppressed once panicMode is started
     if (parser.panicMode)
         return;
 
@@ -242,6 +253,9 @@ static ObjFunction* endCompiler(void) {
                                              : "<script>");
     }
 #endif
+
+    // once this compiler is finished restore the previous compiler
+    currentCompiler = (Compiler*)currentCompiler->enclosing;
     return function;
 }
 
@@ -345,6 +359,48 @@ static void block(void) {
     }
 
     consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.");
+}
+
+static void function(FunctionType functionType) {
+    const int MAX_ARITY = 255;
+
+    // a compiler for each function (see section 24.4.1)
+    Compiler compiler;
+    initCompiler(&compiler, functionType);
+    beginScope();
+
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after function name.");
+    // handle function's parameters
+    if (!check(TOKEN_RIGHT_PAREN)) {
+        do {
+            // for each parameter
+            currentCompiler->function->arity++;
+            if (currentCompiler->function->arity > MAX_ARITY) {
+                errorAtCurrent("Can't have more than 255 function parameters.");
+            }
+
+            const uint8_t constant = parseVariable("Expect parameter name.");
+            defineVariable(constant);
+        } while (match(TOKEN_COMMA));
+    }
+
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
+    consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
+    block();
+
+    // yields the newly compiled function object and stores as a constant in the surrounding
+    // function's constant table
+    ObjFunction* function = endCompiler();
+    emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
+}
+
+// create and store a function in a newly created variable
+static void funDeclaration(void) {
+    const uint8_t global = parseVariable("Expect function name.");
+    // mark initialized now so that the name can be referenced in the body w/o error
+    markInitialized();
+    function(TYPE_FUNCTION);
+    defineVariable(global);
 }
 
 static void varDeclaration(void) {
@@ -497,7 +553,9 @@ static void synchronize(void) {
 }
 
 static void declaration(void) {
-    if (match(TOKEN_VAR)) {
+    if (match(TOKEN_FUN)) {
+        funDeclaration();
+    } else if (match(TOKEN_VAR)) {
         varDeclaration();
     } else {
         statement();
@@ -519,7 +577,7 @@ static void statement(void) {
         whileStatement();
     } else if (match(TOKEN_LEFT_BRACE)) {
         // we've encountered a block
-        // create a scope and evalute statements w/in the block
+        // create a scope and evaluate statements w/in the block
         beginScope();
         block();
         endScope();
@@ -553,13 +611,21 @@ static void patchJump(const int offset) {
 }
 
 // set the initial state of `compiler` to a zero-state.
-static void initCompiler(Compiler* compiler, FunctionType FunctionType) {
+static void initCompiler(Compiler* compiler, FunctionType functionType) {
+    // store the compiler that will no longer be current shortly
+    compiler->enclosing = (struct Compiler*)currentCompiler;
     compiler->function = NULL;
-    compiler->FunctionType = FunctionType;
+    compiler->FunctionType = functionType;
     compiler->localCount = 0;
     compiler->scopeDepth = 0;
     compiler->function = newFunction();
     currentCompiler = compiler;
+
+    // if a non top-level function, set the function's name
+    if (functionType != TYPE_SCRIPT) {
+        currentCompiler->function->functionName =
+            copyString(parser.previous.start, parser.previous.length);
+    }
 
     Local* local = &currentCompiler->locals[currentCompiler->localCount++];
     local->depth = 0;
@@ -797,6 +863,9 @@ static uint8_t parseVariable(const char* errMsg) {
 
 // define a variable as "available" for use
 static void markInitialized(void) {
+    if (currentCompiler->scopeDepth == 0)
+        return;
+
     currentCompiler->locals[currentCompiler->localCount - 1].depth = currentCompiler->scopeDepth;
 }
 
