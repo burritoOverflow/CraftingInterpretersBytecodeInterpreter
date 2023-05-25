@@ -255,8 +255,22 @@ static InterpretResult run(void) {
             }
 
             case OP_RETURN: {
-                // exit interpreter
-                return INTERPRET_OK;
+                const Value result = pop();
+                vm.frameCount--;
+
+                if (vm.frameCount == 0) {
+                    // top-level code is done; exit interpreter
+                    pop();
+                    return INTERPRET_OK;
+                }
+
+                // otherwise, stack ends up right at the start of the returning function's stack
+                // window (reutrn value ends up on stack at the new, lower location)
+                vm.stackTop = frame->slots;
+                push(result);
+                frame = &vm.frames[vm.frameCount - 1];
+
+                break;
             }
 
             case OP_CALL: {

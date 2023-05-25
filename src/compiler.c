@@ -75,7 +75,7 @@ typedef struct {
     struct Compiler*
         enclosing;  // each Compiler points to the Compiler for the function that encloses it
     ObjFunction* function;
-    FunctionType FunctionType;
+    FunctionType functionType;
     Local locals[UINT8_COUNT];  // store all locals that are in scope during each
                                 // point in compilation, ordered by declarations in
                                 // code
@@ -228,6 +228,8 @@ static int emitJump(uint8_t instruction) {
 }
 
 static void emitReturn(void) {
+    // implictly returns nil if no implicit return value specified
+    emitByte(OP_NIL);
     emitByte(OP_RETURN);
 }
 
@@ -515,6 +517,21 @@ static void printStatement(void) {
     emitByte(OP_PRINT);
 }
 
+static void returnStatement(void) {
+    if (currentCompiler->functionType == TYPE_SCRIPT) {
+        error("Can't return from top-level.");
+    }
+
+    if (match(TOKEN_SEMICOLON)) {
+        // implicit return (returns nil)
+        emitReturn();
+    } else {
+        expression();
+        consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
+        emitByte(OP_RETURN);
+    }
+}
+
 static void whileStatement(void) {
     // after executing the loop body, we jump back to before the condition
     // evaluate the loop condition after each iteration
@@ -581,6 +598,8 @@ static void statement(void) {
         forStatement();
     } else if (match(TOKEN_IF)) {
         ifStatement();
+    } else if (match(TOKEN_RETURN)) {
+        returnStatement();
     } else if (match(TOKEN_WHILE)) {
         whileStatement();
     } else if (match(TOKEN_LEFT_BRACE)) {
@@ -623,7 +642,7 @@ static void initCompiler(Compiler* compiler, FunctionType functionType) {
     // store the compiler that shortly will no longer be current
     compiler->enclosing = (struct Compiler*)currentCompiler;
     compiler->function = NULL;
-    compiler->FunctionType = functionType;
+    compiler->functionType = functionType;
     compiler->localCount = 0;
     compiler->scopeDepth = 0;
     compiler->function = newFunction();
