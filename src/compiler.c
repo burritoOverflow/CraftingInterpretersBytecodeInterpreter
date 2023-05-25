@@ -98,6 +98,8 @@ static void declaration(void);
 
 static void defineVariable(uint8_t global);
 
+static uint8_t argumentList(void);
+
 static uint8_t identifierConstant(Token* name);
 
 static uint8_t parseVariable(const char* errMsg);
@@ -115,6 +117,8 @@ static void markInitialized(void);
 static void initCompiler(Compiler* compiler, FunctionType FunctionType);
 
 // end forward declarations
+
+static const int MAX_ARITY = 255;
 
 static Chunk* currentChunk(void) {
     /* create and return a function that contains the compiled top-level code
@@ -155,7 +159,8 @@ static void errorAtCurrent(const char* errorMsg) {
 
 static void advance(void) {
     parser.previous = parser.current;
-    // iterate until reaching a non-error token or reach the end
+
+    // iterate until reaching a non-error token or until we've reached the end
     for (;;) {
         parser.current = scanToken();
         if (parser.current.tokenType != TOKEN_ERROR)
@@ -326,6 +331,11 @@ static void binary(bool canAssign) {
     }
 }
 
+static void call(bool canAssign) {
+    uint8_t argCount = argumentList();
+    emitBytes(OP_CALL, argCount);
+}
+
 // emit the byte for the corresponding literal token type
 static void literal(bool canAssign) {
     // parsePrecedence has already consumed the keyword token,
@@ -362,8 +372,6 @@ static void block(void) {
 }
 
 static void function(FunctionType functionType) {
-    const int MAX_ARITY = 255;
-
     // a compiler for each function (see section 24.4.1)
     Compiler compiler;
     initCompiler(&compiler, functionType);
@@ -612,7 +620,7 @@ static void patchJump(const int offset) {
 
 // set the initial state of `compiler` to a zero-state.
 static void initCompiler(Compiler* compiler, FunctionType functionType) {
-    // store the compiler that will no longer be current shortly
+    // store the compiler that shortly will no longer be current
     compiler->enclosing = (struct Compiler*)currentCompiler;
     compiler->function = NULL;
     compiler->FunctionType = functionType;
@@ -657,6 +665,7 @@ static void string(bool canAssign) {
     Value value = OBJ_VAL(objStr);
     emitConstant(value);
 }
+
 static void namedVariable(Token name, bool canAssign) {
     uint8_t getOp, setOp;
     int arg = resolveLocal(currentCompiler, &name);
@@ -712,7 +721,7 @@ static void unary(bool canAssign) {
 
 // prefixFunc, infixFunc, precedence
 ParseRule rules[] = {
-    [TOKEN_LEFT_PAREN] = {grouping, NULL, PREC_NONE},
+    [TOKEN_LEFT_PAREN] = {grouping, call, PREC_CALL},
     [TOKEN_RIGHT_PAREN] = {NULL, NULL, PREC_NONE},
     [TOKEN_LEFT_BRACE] = {NULL, NULL, PREC_NONE},
     [TOKEN_RIGHT_BRACE] = {NULL, NULL, PREC_NONE},
@@ -877,6 +886,25 @@ static void defineVariable(uint8_t global) {
     }
 
     emitBytes(OP_DEFINE_GLOBAL, global);
+}
+
+// compile the arguments to the function
+static uint8_t argumentList(void) {
+    uint8_t argCount = 0;
+
+    if (!check(TOKEN_RIGHT_PAREN)) {
+        do {
+            // evaluate each argument to the function
+            expression();
+            if (argCount == MAX_ARITY) {
+                error("Can't have more than 255 arguments.");
+            }
+            argCount++;
+        } while (match(TOKEN_COMMA));  // continue as long as commas are present
+    }
+
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
+    return argCount;
 }
 
 static void and_(bool canAssign) {

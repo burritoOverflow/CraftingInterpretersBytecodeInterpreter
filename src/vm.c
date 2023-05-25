@@ -26,11 +26,20 @@ static void runtimeError(const char* format, ...) {
     va_end(args);
     fputs("\n", stderr);
 
-    const CallFrame* frame = &vm.frames[vm.frameCount - 1];
-    const size_t instruction = frame->ip - frame->function->chunk.code - 1;
-    const int line = frame->function->chunk.lines[instruction];
+    // show the stack trace when runtime error occurs
+    for (int i = vm.frameCount - 1; i >= 0; i--) {
+        CallFrame* frame = &vm.frames[i];
+        ObjFunction* function = frame->function;
+        size_t instruction = frame->ip - function->chunk.code - 1;
 
-    fprintf(stderr, "[line %d] in script\n", line);
+        fprintf(stderr, "[line %d] in ", function->chunk.lines[instruction]);
+
+        if (function->functionName == NULL) {
+            fprintf(stderr, "script\n");
+        } else {
+            fprintf(stderr, "%s()\n", function->functionName->chars);
+        }
+    }
 
     resetStack();
 }
@@ -67,6 +76,41 @@ Value pop(void) {
 // distance determines the depth of the stack from where a Value is retrieved
 static Value peek(int distance) {
     return vm.stackTop[-1 - distance];
+}
+
+// initialize the next CallFrame on the stack
+// store the pointer to the function being called
+// and point the frame's ip to the function's code
+// slots pointer points to it's "window" in the stack
+static bool call(ObjFunction* function, int argCount) {
+    if (argCount != function->arity) {
+        runtimeError("Expected %d arguments; got %d arguments.", function->arity, argCount);
+        return false;
+    }
+
+    if (vm.frameCount == FRAMES_MAX) {
+        runtimeError("Stack overflow.");
+        return false;
+    }
+
+    CallFrame* callFrame = &vm.frames[vm.frameCount++];
+    callFrame->function = function;
+    callFrame->ip = function->chunk.code;
+    callFrame->slots = vm.stackTop - argCount - 1;
+    return true;
+}
+
+static bool callValue(Value callee, int argCount) {
+    if (IS_OBJ(callee)) {
+        switch (OBJ_TYPE(callee)) {
+            case OBJ_FUNCTION:
+                return call(AS_FUNCTION(callee), argCount);
+            default:
+                break;  // non-callable object type
+        }
+    }
+    runtimeError("Can only call functions and classes.");
+    return false;
 }
 
 static bool isFalsey(Value value) {
@@ -215,6 +259,17 @@ static InterpretResult run(void) {
                 return INTERPRET_OK;
             }
 
+            case OP_CALL: {
+                const int argCount = READ_BYTE();
+
+                if (!callValue(peek(argCount), argCount)) {
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+
+                frame = &vm.frames[vm.frameCount - 1];
+                break;
+            }
+
             case OP_CONSTANT: {
                 // "loads" a constant (pg. 276)
                 const Value constant = READ_CONSTANT();
@@ -321,16 +376,7 @@ InterpretResult interpret(const char* source) {
 
     // store the function on the stack
     push(OBJ_VAL(function));
-
-    // create the callframe to execute the code
-    CallFrame* frame = &vm.frames[vm.frameCount++];
-    frame->function = function;
-
-    // ip points to the start of this function's bytecode
-    frame->ip = function->chunk.code;
-
-    // stack starts at the bottom of the vm's value stack
-    frame->slots = vm.stack;
+    call(function, 0);
 
     return run();
 }
