@@ -122,12 +122,18 @@ static bool callValue(Value callee, int argCount) {
                 return call(AS_FUNCTION(callee), argCount);
 
             case OBJ_NATIVE:
-                NativeFn native = AS_NATIVE(callee);
+                // TODO - determine a legitimate cause of this error; for now a workaround to
+                // compile with clang
+#ifdef __clang__
+                vm.stackTop -= argCount + 1;
+                push((((ObjNative*)AS_OBJ(callee))->function(argCount, vm.stackTop - argCount)));
+#elif __GNUC__
+                const NativeFn native = AS_NATIVE(callee);
                 const Value result = native(argCount, vm.stackTop - argCount);
                 vm.stackTop -= argCount + 1;
                 push(result);
+#endif
                 return true;
-
             default:
                 break;  // non-callable object type
         }
@@ -289,7 +295,7 @@ static InterpretResult run(void) {
                 }
 
                 // otherwise, stack ends up right at the start of the returning function's stack
-                // window (reutrn value ends up on stack at the new, lower location)
+                // window (return value ends up on stack at the new, lower location)
                 vm.stackTop = frame->slots;
                 push(result);
                 frame = &vm.frames[vm.frameCount - 1];
