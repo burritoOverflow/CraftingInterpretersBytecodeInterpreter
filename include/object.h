@@ -8,13 +8,15 @@
 #define OBJ_TYPE(value) (AS_OBJ(value)->type)
 
 #define IS_FUNCTION(value) isObjType(value, OBJ_FUNCTION)
+#define IS_NATIVE(value) isObjType(value, OBJ_NATIVE)
 #define IS_STRING(value) isObjType(value, OBJ_STRING)
 
 #define AS_FUNCTION(value) ((ObjFunction*)AS_OBJ(value))
+#define AS_NATIVE(value) (((ObjNative*)AS_OBJ(value))->function)
 #define AS_STRING(value) ((ObjString*)AS_OBJ(value))
 #define AS_CSTRING(value) (((ObjString*)AS_OBJ(value))->chars)
 
-typedef enum { OBJ_STRING, OBJ_FUNCTION } ObjType;
+typedef enum { OBJ_STRING, OBJ_FUNCTION, OBJ_NATIVE } ObjType;
 
 struct Obj {
     ObjType type;      // designation for this object's type
@@ -28,6 +30,13 @@ typedef struct {
     ObjString* functionName;  // the name of the function
 } ObjFunction;
 
+typedef Value (*NativeFn)(int argCount, Value* args);
+
+typedef struct {
+    Obj obj;
+    NativeFn function;
+} ObjNative;
+
 struct ObjString {
     Obj obj;        // strings contains the same state as Objects
     int length;     // the length of the string
@@ -36,7 +45,9 @@ struct ObjString {
 };
 
 // create a new Lox function
-ObjFunction* newFunction();
+ObjFunction* newFunction(void);
+
+ObjNative* newNativeFunction(NativeFn nativeFn);
 
 // Allocate a new `ObjString` and copy `chars` to its `chars` field
 // does not take ownership of the `chars` provided

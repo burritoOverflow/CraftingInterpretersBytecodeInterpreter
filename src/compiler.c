@@ -329,7 +329,7 @@ static void binary(bool canAssign) {
             emitByte(OP_DIVIDE);
             break;
         default:
-            return;  // unreachable
+            __builtin_unreachable();
     }
 }
 
@@ -356,7 +356,7 @@ static void literal(bool canAssign) {
             break;
 
         default:
-            return;  // unreachable
+            __builtin_unreachable();
     }
 }
 
@@ -732,9 +732,8 @@ static void unary(bool canAssign) {
             emitByte(OP_NEGATE);
             break;
 
-        // unreachable
         default:
-            return;
+            __builtin_unreachable();
     }
 }
 

@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include "compiler.h"
 #include "debug.h"
@@ -10,6 +11,10 @@
 #include "vm.h"
 
 VM vm;
+
+static Value clockNative(int argCount, Value* args) {
+    return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+}
 
 // stack is empty when pointer is at the start of the array
 void resetStack(void) {
@@ -44,12 +49,22 @@ static void runtimeError(const char* format, ...) {
     resetStack();
 }
 
+static void defineNative(const char* name, NativeFn nativeFn) {
+    push(OBJ_VAL(copyString(name, (int)strlen(name))));
+    push(OBJ_VAL(newNativeFunction(nativeFn)));
+    tableSet(&vm.globals, AS_STRING(vm.stack[0]), vm.stack[1]);
+    pop();
+    pop();
+}
+
 // set the initial state of the vm's struct members
 void initVm(void) {
     resetStack();
     vm.objects = NULL;
     initTable(&vm.globals);
     initTable(&vm.strings);
+
+    defineNative("clock", clockNative);
 }
 
 // free the contents of the vm's struct members
@@ -105,10 +120,19 @@ static bool callValue(Value callee, int argCount) {
         switch (OBJ_TYPE(callee)) {
             case OBJ_FUNCTION:
                 return call(AS_FUNCTION(callee), argCount);
+
+            case OBJ_NATIVE:
+                NativeFn native = AS_NATIVE(callee);
+                const Value result = native(argCount, vm.stackTop - argCount);
+                vm.stackTop -= argCount + 1;
+                push(result);
+                return true;
+
             default:
                 break;  // non-callable object type
         }
     }
+
     runtimeError("Can only call functions and classes.");
     return false;
 }

@@ -18,12 +18,18 @@ static Obj* allocateObject(size_t size, ObjType type) {
     return object;
 }
 
-ObjFunction* newFunction() {
+ObjFunction* newFunction(void) {
     ObjFunction* function = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION);
     function->arity = 0;
     function->functionName = NULL;
     initChunk(&function->chunk);
     return function;
+}
+
+ObjNative* newNativeFunction(NativeFn nativeFn) {
+    ObjNative* native = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE);
+    native->function = nativeFn;
+    return native;
 }
 
 // allocate the `ObjString` object; precondition: `chars` have already been allocated
@@ -99,6 +105,10 @@ void printObject(Value value) {
 
         case OBJ_FUNCTION:
             printFunction(AS_FUNCTION(value));
+            break;
+
+        case OBJ_NATIVE:
+            printf("<native fn>");
             break;
     }
 }
