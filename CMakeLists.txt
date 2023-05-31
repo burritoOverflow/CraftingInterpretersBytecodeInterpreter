@@ -26,6 +26,7 @@ if(CMAKE_BUILD_TYPE STREQUAL Debug)
     add_compile_definitions(DEBUG_TRACE_EXECUTION)
     add_compile_definitions(DEBUG_PRINT_CODE)
 elseif(CMAKE_BUILD_TYPE STREQUAL Release)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
     message("Release build: using CMAKE_C_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE}")
 endif()
 
