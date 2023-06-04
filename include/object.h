@@ -28,6 +28,7 @@ struct Obj {
 typedef struct {
     Obj obj;                  // functions are first-class, so they need to be Lox objects
     int arity;                // number of parameters the function expects
+    int upvalueCount;
     Chunk chunk;              // each function has its own chunk
     ObjString* functionName;  // the name of the function
 } ObjFunction;

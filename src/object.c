@@ -27,6 +27,7 @@ ObjClosure* newClosure(ObjFunction* function) {
 ObjFunction* newFunction(void) {
     ObjFunction* function = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION);
     function->arity = 0;
+    function->upvalueCount = 0;
     function->functionName = NULL;
     initChunk(&function->chunk);
     return function;
