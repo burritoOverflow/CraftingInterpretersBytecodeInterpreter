@@ -18,6 +18,12 @@ static Obj* allocateObject(size_t size, ObjType type) {
     return object;
 }
 
+ObjClosure* newClosure(ObjFunction* function) {
+    ObjClosure* closure = ALLOCATE_OBJ(ObjClosure, OBJ_CLOSURE);
+    closure->function = function;
+    return closure;
+}
+
 ObjFunction* newFunction(void) {
     ObjFunction* function = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION);
     function->arity = 0;
@@ -39,7 +45,7 @@ static ObjString* allocateObjString(char* chars, int length, uint32_t hash) {
     string->chars = chars;
     string->hash = hash;
 
-    // whenever a new string is created add to the vm's strings table
+    // whenever a new (unique) string is created, add to the vm's strings table
     tableSet(&vm.strings, string, NIL_VAL);
     return string;
 }
@@ -60,6 +66,7 @@ ObjString* takeString(char* chars, int length) {
     uint32_t hash = hashString(chars, length);
     ObjString* interned = tableFindString(&vm.strings, chars, length, hash);
 
+    // if present, free the mem for the provided string
     if (interned != NULL) {
         FREE_ARRAY(char, chars, length + 1);
         return interned;
@@ -73,12 +80,13 @@ ObjString* takeString(char* chars, int length) {
 // used when cannot obtain ownership of `chars` provided
 ObjString* copyString(const char* chars, int length) {
     uint32_t hash = hashString(chars, length);
-    ObjString* interned = tableFindString(&vm.strings, chars, length, hash);
 
+    // if the string exists in the table, return a reference to the existing string
+    ObjString* interned = tableFindString(&vm.strings, chars, length, hash);
     if (interned != NULL)
         return interned;
 
-    // allocate length of `chars` and copy the contents to allocated mem
+    // otherwise, allocate length of `chars` and copy the contents to allocated mem
     char* heapChars = ALLOCATE(char, length + 1);
     memcpy(heapChars, chars, length);
     heapChars[length] = '\0';
@@ -109,6 +117,10 @@ void printObject(Value value) {
 
         case OBJ_NATIVE:
             printf("<native fn>");
+            break;
+
+        case OBJ_CLOSURE:
+            printFunction(AS_CLOSURE(value)->function);
             break;
     }
 }

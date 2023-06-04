@@ -9,10 +9,10 @@
 
 // represents an ongoing function call
 typedef struct {
-    ObjFunction* function;  // function being executed
-    uint8_t* ip;   // caller stores its own ip; on func return, VM jumps to `ip` of caller's
-                   // `CallFrame` and resume from there
-    Value* slots;  // points to the vm's stack at the first slot this function can use
+    ObjClosure* closure;  // function being executed
+    uint8_t* ip;          // caller stores its own ip; on func return, VM jumps to `ip` of caller's
+                          // `CallFrame` and resume from there
+    Value* slots;         // points to the vm's stack at the first slot this function can use
 } CallFrame;
 
 typedef struct {
@@ -21,7 +21,7 @@ typedef struct {
     Value stack[STACK_MAX];  // stack semantics are implemented
     Value* stackTop;  // points at the elem just past the elem containing the top value in the stack
     Table globals;    // storing global variables
-    Table strings;    // for string interning
+    Table strings;    // for string interning (see 20.5)
     Obj* objects;     // pointer to the head of the list of allocated objects
 } VM;
 

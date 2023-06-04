@@ -401,7 +401,7 @@ static void function(FunctionType functionType) {
     // yields the newly compiled function object and stores as a constant in the surrounding
     // function's constant table
     ObjFunction* function = endCompiler();
-    emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
+    emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
 }
 
 // create and store a function in a newly created variable
@@ -624,7 +624,7 @@ static void emitConstant(Value value) {
     emitBytes(OP_CONSTANT, makeConstant(value));
 }
 
-// replace the operand at the given location with the calculated jump offset
+// replace the operand at the given location with the calculated jump offset (23.1)
 static void patchJump(const int offset) {
     // -2 to adjust for bytecode from the jump offset itself
     const int jump = currentChunk()->count - offset - 2;

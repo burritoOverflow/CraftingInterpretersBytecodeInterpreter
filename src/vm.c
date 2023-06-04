@@ -34,7 +34,7 @@ static void runtimeError(const char* format, ...) {
     // show the stack trace when runtime error occurs
     for (int i = vm.frameCount - 1; i >= 0; i--) {
         CallFrame* frame = &vm.frames[i];
-        ObjFunction* function = frame->function;
+        ObjFunction* function = frame->closure->function;
         size_t instruction = frame->ip - function->chunk.code - 1;
 
         fprintf(stderr, "[line %d] in ", function->chunk.lines[instruction]);
@@ -97,9 +97,10 @@ static Value peek(int distance) {
 // store the pointer to the function being called
 // and point the frame's ip to the function's code
 // slots pointer points to it's "window" in the stack
-static bool call(ObjFunction* function, int argCount) {
-    if (argCount != function->arity) {
-        runtimeError("Expected %d arguments; got %d arguments.", function->arity, argCount);
+static bool call(ObjClosure* closure, int argCount) {
+    if (argCount != closure->function->arity) {
+        runtimeError("Expected %d arguments; got %d arguments.", closure->function->arity,
+                     argCount);
         return false;
     }
 
@@ -109,8 +110,8 @@ static bool call(ObjFunction* function, int argCount) {
     }
 
     CallFrame* callFrame = &vm.frames[vm.frameCount++];
-    callFrame->function = function;
-    callFrame->ip = function->chunk.code;
+    callFrame->closure = closure;
+    callFrame->ip = closure->function->chunk.code;
     callFrame->slots = vm.stackTop - argCount - 1;
     return true;
 }
@@ -118,15 +119,15 @@ static bool call(ObjFunction* function, int argCount) {
 static bool callValue(Value callee, int argCount) {
     if (IS_OBJ(callee)) {
         switch (OBJ_TYPE(callee)) {
-            case OBJ_FUNCTION:
-                return call(AS_FUNCTION(callee), argCount);
+            case OBJ_CLOSURE:
+                return call(AS_CLOSURE(callee), argCount);
 
             case OBJ_NATIVE:
                 // TODO - determine a legitimate cause of this error; for now a workaround to
                 // compile with clang
 #ifdef __clang__
                 vm.stackTop -= argCount + 1;
-                push((((ObjNative*)AS_OBJ(callee))->function(argCount, vm.stackTop - argCount)));
+                push((((ObjNative*)(callee).as.obj)->function(argCount, vm.stackTop - argCount)));
 #elif __GNUC__
                 const NativeFn native = AS_NATIVE(callee);
                 const Value result = native(argCount, vm.stackTop - argCount);
@@ -173,7 +174,7 @@ static InterpretResult run(void) {
 
 // reads next byte from bytecode and uses that as an
 // index in the Value's constant table
-#define READ_CONSTANT() (frame->function->chunk.constants.values[READ_BYTE()])
+#define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
 
 // read a 16bit operand from the chunk (build unsigned int from chunk)
 #define READ_SHORT() (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
@@ -206,8 +207,8 @@ static InterpretResult run(void) {
 
         // convert `ip` back to a relative offset from the start of the bytecode
         // as `disassembleInstruction` takes an integer byte offset
-        disassembleInstruction(&frame->function->chunk,
-                               (int)(frame->ip - frame->function->chunk.code));
+        disassembleInstruction(&frame->closure->function->chunk,
+                               (int)(frame->ip - frame->closure->function->chunk.code));
 #endif
 
         // each condition implements the opcode's behavior
@@ -284,6 +285,13 @@ static InterpretResult run(void) {
                 break;
             }
 
+            case OP_CLOSURE: {
+                ObjFunction* function = AS_FUNCTION(READ_CONSTANT());
+                ObjClosure* closure = newClosure(function);
+                push(OBJ_VAL(closure));
+                break;
+            }
+
             case OP_RETURN: {
                 const Value result = pop();
                 vm.frameCount--;
@@ -310,6 +318,7 @@ static InterpretResult run(void) {
                     return INTERPRET_RUNTIME_ERROR;
                 }
 
+                // update the cached pointer to the current frame
                 frame = &vm.frames[vm.frameCount - 1];
                 break;
             }
@@ -420,7 +429,10 @@ InterpretResult interpret(const char* source) {
 
     // store the function on the stack
     push(OBJ_VAL(function));
-    call(function, 0);
+    ObjClosure* closure = newClosure(function);
+    pop();
+    push(OBJ_VAL(closure));
+    call(closure, 0);
 
     return run();
 }
