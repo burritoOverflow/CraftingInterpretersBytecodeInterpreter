@@ -64,8 +64,9 @@ typedef struct {
 } ParseRule;
 
 typedef struct {
-    Token name;  // identifier's lexeme
-    int depth;   // the scope depth of the block, where the local was declared
+    Token name;       // identifier's lexeme
+    int depth;        // the scope depth of the block, where the local was declared
+    bool isCaptured;  // is a given local captured by a closure
 } Local;
 
 typedef struct {
@@ -76,7 +77,7 @@ typedef struct {
 // support both top-level code (implicit function) and declared functions
 typedef enum { TYPE_FUNCTION, TYPE_SCRIPT } FunctionType;
 
-typedef struct {
+typedef struct Compiler {
     struct Compiler*
         enclosing;  // each Compiler points to the Compiler for the function that encloses it
     ObjFunction* function;
@@ -92,8 +93,6 @@ typedef struct {
 Parser parser;
 
 Compiler* currentCompiler = NULL;
-
-Chunk* compilingChunk;
 
 // forward declarations
 static ParseRule* getRule(TokenType type);
@@ -123,7 +122,6 @@ static void markInitialized(void);
 static void initCompiler(Compiler* compiler, FunctionType FunctionType);
 
 static int resolveUpvalue(Compiler* compiler, Token* name);
-
 // end forward declarations
 
 static const int MAX_ARITY = 255;
@@ -291,8 +289,13 @@ static void endScope(void) {
                currentCompiler->scopeDepth) {
         // slot is no longer needed when local goes out of scope (remove from
         // runtime stack)
-        emitByte(OP_POP);
-
+        if (currentCompiler->locals[currentCompiler->localCount - 1].isCaptured) {
+            // when the scope ends and emits code to free the stack slots for the locals
+            // emit instruction to hoist those that need to be closed over to the heap
+            emitByte(OP_CLOSE_UPVALUE);
+        } else {
+            emitByte(OP_POP);
+        }
         // discard the locals by simply decrementing the count
         currentCompiler->localCount--;
     }
@@ -662,6 +665,8 @@ static void initCompiler(Compiler* compiler, FunctionType functionType) {
     compiler->localCount = 0;
     compiler->scopeDepth = 0;
     compiler->function = newFunction();
+
+    // and set this compiler as the current
     currentCompiler = compiler;
 
     // if a non top-level function, set the function's name
@@ -672,6 +677,7 @@ static void initCompiler(Compiler* compiler, FunctionType functionType) {
 
     Local* local = &currentCompiler->locals[currentCompiler->localCount++];
     local->depth = 0;
+    local->isCaptured = false;
     local->name.start = "";
     local->name.length = 0;
 }
@@ -710,6 +716,7 @@ static void namedVariable(Token name, bool canAssign) {
         getOp = OP_GET_LOCAL;
         setOp = OP_SET_LOCAL;
     } else if ((arg = resolveUpvalue(currentCompiler, &name)) != -1) {
+        // resolution step for outer local scopes
         getOp = OP_GET_UPVALUE;
         setOp = OP_SET_UPVALUE;
     } else {
@@ -881,22 +888,27 @@ static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal) {
     return compiler->function->upvalueCount++;
 }
 
-// Resolve the upvalue identifier
+// Resolve the upvalue identifier by looking for a local variable declared in
+// any of the caller's enclosing functions; return the "upvalue index" if found, "-1" otherwise.
 static int resolveUpvalue(Compiler* compiler, Token* name) {
+    // reached the outermost function w/o finding a local variable (must be global)
     if (compiler->enclosing == NULL)
         return -1;
 
     // base case: a local variable is found in the enclosing function
     const int local = resolveLocal((Compiler*)compiler->enclosing, name);
     if (local != -1) {
+        // upvalue for local is marked as captured
+        compiler->enclosing->locals[local].isCaptured = true;
         return addUpvalue(compiler, (uint8_t)local, true);
     }
 
     // otherwise, we look for a local variable in the enclosing function
     // eventually, we either find a local variable or run out of enclosing compilers
+    // detailed in 25.2.2
     const int upvalue = resolveUpvalue((Compiler*)compiler->enclosing, name);
     if (upvalue != -1) {
-        // upvalue from an enclosing function
+        // upvalue from an enclosing function (so isLocal == false)
         return addUpvalue(compiler, (uint8_t)upvalue, false);
     }
 
@@ -917,6 +929,7 @@ static void addLocal(Token name) {
     // special sentinel value indicating that the variable is in an "unitialized"
     // state
     local->depth = -1;
+    local->isCaptured = false;
 }
 
 static void declareVariable(void) {

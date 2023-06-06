@@ -20,6 +20,7 @@ static Value clockNative(int argCount, Value* args) {
 void resetStack(void) {
     vm.stackTop = vm.stack;
     vm.frameCount = 0;
+    vm.openUpvalues = NULL;
 }
 
 // output a formatted error
@@ -142,6 +143,42 @@ static bool callValue(Value callee, int argCount) {
 
     runtimeError("Can only call functions and classes.");
     return false;
+}
+
+static ObjUpvalue* captureUpvalue(Value* local) {
+    ObjUpvalue* prevUpvalue = NULL;
+    ObjUpvalue* upvalue = vm.openUpvalues;
+
+    while (upvalue != NULL && upvalue->location > local) {
+        prevUpvalue = upvalue;
+        upvalue = upvalue->next;
+    }
+
+    if (upvalue != NULL && upvalue->location == local) {
+        return upvalue;
+    }
+
+    ObjUpvalue* createdUpvalue = newUpvalue(local);
+    createdUpvalue->next = upvalue;
+
+    if (prevUpvalue == NULL) {
+        vm.openUpvalues = createdUpvalue;
+    } else {
+        prevUpvalue->next = createdUpvalue;
+    }
+
+    return createdUpvalue;
+}
+
+// close (move to heap) all open upvalues (local variables currently on the stack) found that points
+// to that slot or slots above it on the stack (see discussion on 25.4.4)
+static void closeUpvalues(Value* last) {
+    while (vm.openUpvalues != NULL && vm.openUpvalues->location >= last) {
+        ObjUpvalue* upvalue = vm.openUpvalues;
+        upvalue->closed = *upvalue->location;
+        upvalue->location = &upvalue->closed;
+        vm.openUpvalues = upvalue->next;
+    }
 }
 
 static bool isFalsey(Value value) {
@@ -289,11 +326,33 @@ static InterpretResult run(void) {
                 ObjFunction* function = AS_FUNCTION(READ_CONSTANT());
                 ObjClosure* closure = newClosure(function);
                 push(OBJ_VAL(closure));
+
+                // iterate through each upvalue the closure expects
+                for (int i = 0; i < closure->upvalueCount; ++i) {
+                    // see discussion in section 25.3.1
+                    const uint8_t isLocal = READ_BYTE();
+                    const uint8_t index = READ_BYTE();
+
+                    if (isLocal) {
+                        // closes over a local variable in the enclosing function
+                        closure->upvalues[i] = captureUpvalue(frame->slots + index);
+                    } else {
+                        // capture an upvalue from the surrounding function
+                        closure->upvalues[i] = frame->closure->upvalues[index];
+                    }
+                }
+
                 break;
             }
 
+            case OP_CLOSE_UPVALUE:
+                closeUpvalues(vm.stackTop - 1);
+                pop();
+                break;
+
             case OP_RETURN: {
                 const Value result = pop();
+                closeUpvalues(frame->slots);
                 vm.frameCount--;
 
                 if (vm.frameCount == 0) {
@@ -393,6 +452,20 @@ static InterpretResult run(void) {
                 }
                 break;
             }
+            case OP_GET_UPVALUE: {
+                // operand is the index into the current func's upvalue array
+                uint8_t slot = READ_BYTE();
+
+                // so look up the corresponding upvalue and read the value in its' slot
+                push(*frame->closure->upvalues[slot]->location);
+                break;
+            }
+
+            case OP_SET_UPVALUE: {
+                uint8_t slot = READ_BYTE();
+                *frame->closure->upvalues[slot]->location = peek(0);
+                break;
+            }
 
             case OP_EQUAL: {
                 const Value b = pop();
@@ -401,15 +474,15 @@ static InterpretResult run(void) {
                 // push the result of an equality check
                 push(BOOL_VAL(valuesEqual(a, b)));
                 break;
-
-                case OP_GREATER:
-                    BINARY_OP(BOOL_VAL, >);
-                    break;
-
-                case OP_LESS:
-                    BINARY_OP(BOOL_VAL, <);
-                    break;
             }
+
+            case OP_GREATER:
+                BINARY_OP(BOOL_VAL, >);
+                break;
+
+            case OP_LESS:
+                BINARY_OP(BOOL_VAL, <);
+                break;
         }
     }
 

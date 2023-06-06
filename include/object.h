@@ -18,7 +18,7 @@
 #define AS_STRING(value) ((ObjString*)AS_OBJ(value))
 #define AS_CSTRING(value) (((ObjString*)AS_OBJ(value))->chars)
 
-typedef enum { OBJ_STRING, OBJ_FUNCTION, OBJ_NATIVE, OBJ_CLOSURE } ObjType;
+typedef enum { OBJ_STRING, OBJ_FUNCTION, OBJ_NATIVE, OBJ_CLOSURE, OBJ_UPVALUE } ObjType;
 
 struct Obj {
     ObjType type;      // designation for this object's type
@@ -26,8 +26,8 @@ struct Obj {
 };
 
 typedef struct {
-    Obj obj;                  // functions are first-class, so they need to be Lox objects
-    int arity;                // number of parameters the function expects
+    Obj obj;    // functions are first-class, so they need to be Lox objects
+    int arity;  // number of parameters the function expects
     int upvalueCount;
     Chunk chunk;              // each function has its own chunk
     ObjString* functionName;  // the name of the function
@@ -47,9 +47,18 @@ struct ObjString {
     uint32_t hash;  // each object stores the hash code for its string
 };
 
+typedef struct ObjUpvalue {
+    Obj obj;
+    Value* location;  // reference to a variable, not the value itself (see 25.3)
+    struct ObjUpvalue* next;
+    Value closed;
+} ObjUpvalue;
+
 typedef struct {
     Obj obj;
     ObjFunction* function;
+    ObjUpvalue** upvalues;  // each closure has an array of upvalues
+    int upvalueCount;       // the number of upvalues for this closure (elements in the above array)
 } ObjClosure;
 
 ObjClosure* newClosure(ObjFunction* function);
@@ -62,6 +71,8 @@ ObjNative* newNativeFunction(NativeFn nativeFn);
 // Allocate a new `ObjString` and copy `chars` to its `chars` field
 // does not take ownership of the `chars` provided
 ObjString* copyString(const char* chars, int length);
+
+ObjUpvalue* newUpvalue(Value* slot);
 
 // Allocate a new `ObjString` and set `chars` to the provided `chars`
 // claims ownership of the `chars` provided
