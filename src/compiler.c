@@ -845,7 +845,7 @@ static bool identifiersEqual(Token* a, Token* b) {
     return memcmp(a->start, b->start, a->length) == 0;
 }
 
-// walk the list of identifiers in the current scope
+// walk the list of identifiers in the current scope; return the index if found; -1 otherwise
 static int resolveLocal(Compiler* compiler, Token* name) {
     // walk backwards, so we find the last declared variable with the identifier
     for (int i = compiler->localCount - 1; i >= 0; i--) {

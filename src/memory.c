@@ -4,7 +4,20 @@
 #include "object.h"
 #include "vm.h"
 
+#ifdef DEBUG_LOG_GC
+#include <stdio.h>
+#include "debug.h"
+#endif
+
 void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
+    // "stress test" mode for garbage collector
+    // when flag enabled, GC runs as often as possible (see 26.2.1)
+    if (newSize > oldSize) {
+#ifdef DEBUG_STRESS_GC
+        collectGarbage();
+#endif
+    }
+
     // deallocation is handled here as well
     if (newSize == 0) {
         free(pointer);
@@ -20,7 +33,32 @@ void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
     return result;
 }
 
+void markObject(Obj* object) {
+    if (object == NULL) {
+        return;
+    }
+
+#ifdef DEBUG_LOG_GC
+    printf("%p mark object ", (void*)object);
+    printValue(OBJ_VAL(object));
+    printf("\n");
+#endif
+
+    object->isMarked = true;
+}
+
+// mark heap objects
+void markValue(Value value) {
+    if (IS_OBJ(value)) {
+        markObject(AS_OBJ(value));
+    }
+}
+
 static void freeObject(Obj* object) {
+#ifdef DEBUG_LOG_GC
+    printf("%p free type %d\n", (void*)object, object->type);
+#endif
+
     switch (object->type) {
         case OBJ_STRING: {
             ObjString* string = (ObjString*)object;
@@ -56,6 +94,27 @@ static void freeObject(Obj* object) {
             FREE(ObjUpvalue, object);
             break;
     }
+}
+
+// mark the locals or temporaries in the VM's stack
+static void markRoots(void) {
+    for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
+        markValue(*slot);
+    }
+
+    markTable(&vm.globals);
+}
+
+void collectGarbage(void) {
+#ifdef DEBUG_LOG_GC
+    printf("-- gc begin\n");
+#endif
+
+    markRoots();
+
+#ifdef DEBUG_LOG_GC
+    printf("-- gc end\n");
+#endif
 }
 
 // Traverse the VM's objects and delete each

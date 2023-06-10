@@ -21,7 +21,8 @@
 typedef enum { OBJ_STRING, OBJ_FUNCTION, OBJ_NATIVE, OBJ_CLOSURE, OBJ_UPVALUE } ObjType;
 
 struct Obj {
-    ObjType type;      // designation for this object's type
+    ObjType type;  // designation for this object's type
+    bool isMarked;
     struct Obj* next;  // intrusive list stores a ptr to the next object
 };
 

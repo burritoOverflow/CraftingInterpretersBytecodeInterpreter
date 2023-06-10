@@ -34,4 +34,6 @@ void tableAddAll(Table* src, Table* dest);
 // locate an interned string in the table that matches the `chars` string provided
 ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t hash);
 
+void markTable(Table* table);
+
 #endif
