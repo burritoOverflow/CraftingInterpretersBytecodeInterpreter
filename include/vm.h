@@ -22,7 +22,8 @@ typedef struct {
     Value* stackTop;  // points at the elem just past the elem containing the top value in the stack
     Table globals;    // storing global variables
     Table strings;    // for string interning (see 20.5)
-    ObjUpvalue* openUpvalues;  // head pointer to open upvalues
+    ObjUpvalue* openUpvalues;  // head pointer to open upvalues (those upvalues that still
+                               // reside on a local variable still on the stack)
     Obj* objects;              // pointer to the head of the list of allocated objects
 } VM;
 

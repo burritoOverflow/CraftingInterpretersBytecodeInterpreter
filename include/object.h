@@ -52,7 +52,7 @@ typedef struct ObjUpvalue {
     Obj obj;
     Value* location;  // reference to a variable, not the value itself (see 25.3)
     struct ObjUpvalue* next;
-    Value closed;
+    Value closed;  // closed over variable moves into this field (where upvalues live on the heap)
 } ObjUpvalue;
 
 typedef struct {

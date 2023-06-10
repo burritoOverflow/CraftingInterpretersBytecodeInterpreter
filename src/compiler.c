@@ -6,6 +6,7 @@
 #include "chunk.h"
 #include "common.h"
 #include "compiler.h"
+#include "memory.h"
 #include "scanner.h"
 #include "value.h"
 
@@ -1035,4 +1036,14 @@ ObjFunction* compile(const char* source) {
     ObjFunction* function = endCompiler();
 
     return parser.hadError ? NULL : function;
+}
+
+void markCompilerRoots(void) {
+    Compiler* compiler = currentCompiler;
+
+    while (compiler != NULL) {
+        // mark the compiler's list of ObjFuncs it's compiling
+        markObject((Obj*)compiler->function);
+        compiler = compiler->enclosing;
+    }
 }

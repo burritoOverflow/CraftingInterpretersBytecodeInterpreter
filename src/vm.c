@@ -145,6 +145,7 @@ static bool callValue(Value callee, int argCount) {
     return false;
 }
 
+// close the upvalue (see 25.4.3)
 static ObjUpvalue* captureUpvalue(Value* local) {
     ObjUpvalue* prevUpvalue = NULL;
     ObjUpvalue* upvalue = vm.openUpvalues;
@@ -175,8 +176,13 @@ static ObjUpvalue* captureUpvalue(Value* local) {
 static void closeUpvalues(Value* last) {
     while (vm.openUpvalues != NULL && vm.openUpvalues->location >= last) {
         ObjUpvalue* upvalue = vm.openUpvalues;
+
+        // copy the variable's value
         upvalue->closed = *upvalue->location;
+
+        // now the location is its own `closed` field
         upvalue->location = &upvalue->closed;
+
         vm.openUpvalues = upvalue->next;
     }
 }
