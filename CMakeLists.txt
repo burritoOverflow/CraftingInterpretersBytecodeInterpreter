@@ -23,7 +23,7 @@ set(CMAKE_C_EXTENSIONS OFF)
 
 if (CMAKE_BUILD_TYPE STREQUAL Debug)
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address,undefined")
-    message(" Debug build: using CMAKE_C_FLAGS_DEBUG: ${CMAKE_C_FLAGS_DEBUG}")
+    message("Debug build: using CMAKE_C_FLAGS_DEBUG: ${CMAKE_C_FLAGS_DEBUG}")
     add_compile_definitions(DEBUG_TRACE_EXECUTION)
     add_compile_definitions(DEBUG_PRINT_CODE)
     add_compile_definitions(DEBUG_STRESS_GC)
@@ -33,7 +33,7 @@ elseif (CMAKE_BUILD_TYPE STREQUAL Release)
     message("Release build: using CMAKE_C_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE}")
 endif ()
 
-message(" Using CMAKE_C_FLAGS: ${CMAKE_C_FLAGS} ")
+message("Using CMAKE_C_FLAGS: ${CMAKE_C_FLAGS} ")
 
 # should also enable verbosity when using Ninja (https://github.com/ninja-build/ninja/issues/900)
 # otherwise, passing `--verbose` when invoking build should suffice

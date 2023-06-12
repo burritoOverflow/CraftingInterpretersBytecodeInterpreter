@@ -16,6 +16,7 @@ static Obj* allocateObject(size_t size, ObjType type) {
 
     object->next = vm.objects;
     vm.objects = object;
+
 #ifdef DEBUG_LOG_GC
     printf("%p allocate %zu for type %d\n", (void*)object, size, type);
 #endif
@@ -59,8 +60,13 @@ static ObjString* allocateObjString(char* chars, int length, uint32_t hash) {
     string->chars = chars;
     string->hash = hash;
 
+    // see 26.7.2
+    push(OBJ_VAL(string));
+
     // whenever a new (unique) string is created, add to the vm's strings table
     tableSet(&vm.strings, string, NIL_VAL);
+    pop();
+
     return string;
 }
 

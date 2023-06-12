@@ -169,6 +169,21 @@ ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t
     }
 }
 
+// recall that the table interns strings and contains a hash set with pointers to every string on
+// the heap; this is not treated as a root during the mark phase
+void tableRemoveWhite(Table* table) {
+    for (int i = 0; i < table->capacity; ++i) {
+        Entry* entry = &table->entries[i];
+        if (entry->key != NULL && !entry->key->obj.isMarked) {
+            // object is soon to be free'd (as it isn't marked); delete from the table first to
+            // avoid dangling pointers
+            // note that the above is the case as the intent is to invoke this function just prior
+            // to `sweep`
+            tableDelete(table, entry->key);
+        }
+    }
+}
+
 // mark global variables
 void markTable(Table* table) {
     for (int i = 0; i < table->capacity; i++) {

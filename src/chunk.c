@@ -2,6 +2,7 @@
 
 #include "chunk.h"
 #include "memory.h"
+#include "vm.h"
 
 // Start off completely empty
 void initChunk(Chunk* chunk) {
@@ -32,7 +33,10 @@ void writeChunk(Chunk* chunk, uint8_t byte, int line) {
 // add a constant to the `chunk` and return the index where the constant was
 // appended
 int addConstant(Chunk* chunk, Value value) {
+    // see 26.7.1 for the rationale for temp stack use
+    push(value);
     writeValueArray(&chunk->constants, value);
+    pop();
     return chunk->constants.count - 1;
 }
 

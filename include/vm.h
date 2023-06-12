@@ -25,6 +25,9 @@ typedef struct {
     ObjUpvalue* openUpvalues;  // head pointer to open upvalues (those upvalues that still
                                // reside on a local variable still on the stack)
     Obj* objects;              // pointer to the head of the list of allocated objects
+    size_t bytesAllocated;     // number of bytes of managed memory the VM has allocated
+    size_t nextGC;             // threshold that triggers next garbage collection
+
     int grayCount;
     int grayCapacity;
     Obj** grayStack;  // worklist for keeping track of gray objects (see 26.4.1) (set of objects we

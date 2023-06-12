@@ -62,6 +62,8 @@ static void defineNative(const char* name, NativeFn nativeFn) {
 void initVm(void) {
     resetStack();
     vm.objects = NULL;
+    vm.bytesAllocated = 0;
+    vm.nextGC = 1024 * 1024;
 
     vm.grayCount = 0;
     vm.grayCapacity = 0;
@@ -199,8 +201,8 @@ static bool isFalsey(Value value) {
 
 // pop strings off stack and push the concatenated result
 static void concatenate(void) {
-    ObjString* b = AS_STRING(pop());
-    ObjString* a = AS_STRING(pop());
+    ObjString* b = AS_STRING(peek(0));
+    ObjString* a = AS_STRING(peek(1));
 
     const int length = a->length + b->length;
     char* chars = ALLOCATE(char, length + 1);
@@ -210,6 +212,9 @@ static void concatenate(void) {
 
     // characters are already allocated; allow `result` to take ownership
     ObjString* result = takeString(chars, length);
+    pop();
+    pop();
+
     push(OBJ_VAL(result));
 }
 

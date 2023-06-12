@@ -10,7 +10,11 @@
 #include "debug.h"
 #endif
 
+#define GC_HEAP_GROW_FACTOR 2
+
 void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
+    vm.bytesAllocated += newSize - oldSize;
+
     // "stress test" mode for garbage collector
     // when flag enabled, GC runs as often as possible (see 26.2.1)
     if (newSize > oldSize) {
@@ -19,7 +23,11 @@ void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
 #endif
     }
 
-    // deallocation is handled here as well
+    if (vm.bytesAllocated > vm.nextGC) {
+        collectGarbage();
+    }
+
+    // de-allocation is handled here as well
     if (newSize == 0) {
         free(pointer);
         return NULL;
@@ -52,10 +60,12 @@ void markObject(Obj* object) {
 
     object->isMarked = true;
 
+    // add to the worklist
     if (vm.grayCapacity < vm.grayCount + 1) {
         vm.grayCapacity = GROW_CAPACITY(vm.grayCapacity);
 
-        // recall that this stack is not managed by the garbage collector
+        // recall that this stack is not managed by the garbage collector so invoke `realloc`
+        // instead of our implementation
         vm.grayStack = (Obj**)realloc(vm.grayStack, sizeof(Obj*) * vm.grayCapacity);
 
         // allocation failed; we'll just exit
@@ -82,7 +92,7 @@ static void markArray(ValueArray* valueArray) {
 
 static void blackenObject(Obj* object) {
 #ifdef DEBUG_LOG_GC
-    printf("%p blacken object", (void*)object);
+    printf("%p blacken object ", (void*)object);
     printValue(OBJ_VAL(object));
     printf("\n");
 #endif
@@ -188,16 +198,53 @@ static void traceReferences(void) {
     }
 }
 
+// free all unmarked objects, and mark the currently marked ones as unmarked
+static void sweep(void) {
+    Obj* previous = NULL;
+    Obj* object = vm.objects;
+
+    while (object != NULL) {
+        // object is black, continue...
+        if (object->isMarked) {
+            // for the next collection we need every object to be white
+            object->isMarked = false;
+            previous = object;
+            object = object->next;
+        } else {
+            // unlink from the list and free the object
+            // (unreachable and thus can be claimed)
+            Obj* unreached = object;
+            object = object->next;
+
+            // see diagram on 26.5 for clarification
+            if (previous != NULL) {
+                previous->next = object;
+            } else {
+                vm.objects = object;
+            }
+
+            freeObject(unreached);
+        }
+    }
+}
+
 void collectGarbage(void) {
 #ifdef DEBUG_LOG_GC
     printf("-- gc begin\n");
+    const size_t before = vm.bytesAllocated;
 #endif
 
     markRoots();
     traceReferences();
+    // remove references to unreachable strings before sweep is performed (26.5.1)
+    tableRemoveWhite(&vm.strings);
+    sweep();
+    vm.nextGC = vm.bytesAllocated * GC_HEAP_GROW_FACTOR;
 
 #ifdef DEBUG_LOG_GC
     printf("-- gc end\n");
+    printf("   collected %zu bytes (from %zu to %zu) next at %zu\n", before - vm.bytesAllocated,
+           before, vm.bytesAllocated, vm.nextGC);
 #endif
 }
 
