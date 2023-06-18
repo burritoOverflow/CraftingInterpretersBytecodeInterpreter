@@ -7,7 +7,6 @@
 
 #ifdef DEBUG_LOG_GC
 #include <stdio.h>
-#include "debug.h"
 #endif
 
 #define GC_HEAP_GROW_FACTOR 2
