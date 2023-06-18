@@ -123,6 +123,13 @@ static void blackenObject(Obj* object) {
             break;
         }
 
+        case OBJ_INSTANCE: {
+            ObjInstance* instance = (ObjInstance*)object;
+            markObject((Obj*)instance->klass);
+            markTable(&instance->fields);
+            break;
+        }
+
         case OBJ_UPVALUE:
             markValue(((ObjUpvalue*)object)->closed);
             break;
@@ -177,6 +184,13 @@ static void freeObject(Obj* object) {
             // ObjUpvalue does not own the variable it references (only free the ObjUpvalue itself)
             FREE(ObjUpvalue, object);
             break;
+
+        case OBJ_INSTANCE: {
+            ObjInstance* instance = (ObjInstance*)object;
+            freeTable(&instance->fields);
+            FREE(ObjInstance, object);
+            break;
+        }
     }
 }
 

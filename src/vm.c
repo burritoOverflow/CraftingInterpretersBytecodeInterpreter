@@ -127,6 +127,14 @@ static bool call(ObjClosure* closure, int argCount) {
 static bool callValue(Value callee, int argCount) {
     if (IS_OBJ(callee)) {
         switch (OBJ_TYPE(callee)) {
+            // instantiating an instance of a class is via a `call` on the class name
+            case OBJ_CLASS: {
+                // create a new instance of the class and store on the stack
+                const ObjClass* klass = AS_CLASS(callee);
+                vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass));
+                return true;
+            }
+
             case OBJ_CLOSURE:
                 return call(AS_CLOSURE(callee), argCount);
 
