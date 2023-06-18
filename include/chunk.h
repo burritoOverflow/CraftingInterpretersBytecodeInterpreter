@@ -38,6 +38,7 @@ typedef enum {
     OP_CLOSURE,
     OP_CLOSE_UPVALUE,
     OP_RETURN,
+    OP_CLASS,
 } OpCode;
 
 // Dynamic array for the instructions; the chunk of code run by the VM

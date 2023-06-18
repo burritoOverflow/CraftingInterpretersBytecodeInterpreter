@@ -70,6 +70,12 @@ static ObjString* allocateObjString(char* chars, int length, uint32_t hash) {
     return string;
 }
 
+ObjClass* newClass(ObjString* className) {
+    ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
+    klass->className = className;
+    return klass;
+}
+
 // FNV-1a hash: http://www.isthe.com/chongo/tech/comp/fnv/
 static uint32_t hashString(const char* key, int length) {
     uint32_t hash = 2166136261u;
@@ -145,6 +151,10 @@ void printObject(Value value) {
 
         case OBJ_NATIVE:
             printf("<native fn>");
+            break;
+
+        case OBJ_CLASS:
+            printf("%s", AS_CLASS(value)->className->chars);
             break;
 
         case OBJ_CLOSURE:

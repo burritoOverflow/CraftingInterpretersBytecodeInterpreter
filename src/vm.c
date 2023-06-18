@@ -499,6 +499,10 @@ static InterpretResult run(void) {
             case OP_LESS:
                 BINARY_OP(BOOL_VAL, <);
                 break;
+
+            case OP_CLASS:
+                push(OBJ_VAL(newClass(READ_STRING())));
+                break;
         }
     }
 
