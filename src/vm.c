@@ -491,6 +491,51 @@ static InterpretResult run(void) {
                 break;
             }
 
+            case OP_GET_PROPERTY: {
+                if (!IS_INSTANCE(peek(0))) {
+                    runtimeError("Only Instances have properties.");
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+
+                ObjInstance* instance = AS_INSTANCE(peek(0));
+
+                // read the field name from the constant pool
+                ObjString* name = READ_STRING();
+
+                Value value;
+
+                // read the field's value from the instance's field table
+                if (tableGet(&instance->fields, name, &value)) {
+                    pop();  // Instance
+                    push(value);
+                    break;
+                }
+
+                // field not found
+                runtimeError("Undefined property %s", name->chars);
+                return INTERPRET_RUNTIME_ERROR;
+            }
+
+                // see section 27.4.1
+            case OP_SET_PROPERTY: {
+                if (!IS_INSTANCE(peek(1))) {
+                    runtimeError("Only Instances have fields.");
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+
+                // top of the stack contains the instance whos field is being set; above that is
+                // the value to be stored
+                ObjInstance* instance = AS_INSTANCE(peek(1));
+                tableSet(&instance->fields, READ_STRING(), peek(0));
+
+                // in effect, we remove the second element while leaving the first alone
+                const Value value = pop();
+                pop();
+                push(value);
+
+                break;
+            }
+
             case OP_EQUAL: {
                 const Value b = pop();
                 const Value a = pop();
