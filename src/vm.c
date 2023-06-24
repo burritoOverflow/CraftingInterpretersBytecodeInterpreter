@@ -12,7 +12,8 @@
 
 VM vm;
 
-static Value clockNative(int argCount, Value* args) {
+static Value clockNative(__attribute__((unused)) int argCount,
+                         __attribute__((unused)) Value* args) {
     return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
 }
 
@@ -130,7 +131,7 @@ static bool callValue(Value callee, int argCount) {
             // instantiating an instance of a class is via a `call` on the class name
             case OBJ_CLASS: {
                 // create a new instance of the class and store on the stack
-                const ObjClass* klass = AS_CLASS(callee);
+                ObjClass* klass = AS_CLASS(callee);
                 vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass));
                 return true;
             }
@@ -202,6 +203,15 @@ static void closeUpvalues(Value* last) {
     }
 }
 
+static void defineMethod(ObjString* name) {
+    Value method = peek(0);
+    ObjClass* klass = AS_CLASS(peek(1));
+    tableSet(&klass->methods, name, method);
+
+    // pop the closure as we're done with it
+    pop();
+}
+
 static bool isFalsey(Value value) {
     // nil and false are falsey; every other value is true
     return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
@@ -209,11 +219,12 @@ static bool isFalsey(Value value) {
 
 // pop strings off stack and push the concatenated result
 static void concatenate(void) {
-    ObjString* b = AS_STRING(peek(0));
-    ObjString* a = AS_STRING(peek(1));
+    const ObjString* b = AS_STRING(peek(0));
+    const ObjString* a = AS_STRING(peek(1));
 
     const int length = a->length + b->length;
     char* chars = ALLOCATE(char, length + 1);
+
     memcpy(chars, a->chars, a->length);
     memcpy(chars + a->length, b->chars, b->length);
     chars[length] = '\0';
@@ -556,6 +567,11 @@ static InterpretResult run(void) {
             case OP_CLASS:
                 push(OBJ_VAL(newClass(READ_STRING())));
                 break;
+
+            case OP_METHOD: {
+                defineMethod(READ_STRING());
+                break;
+            }
         }
     }
 

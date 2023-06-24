@@ -108,6 +108,8 @@ static void declareVariable(void);
 
 static void defineVariable(uint8_t global);
 
+static void namedVariable(Token name, bool canAssign);
+
 static uint8_t argumentList(void);
 
 static uint8_t identifierConstant(Token* name);
@@ -308,7 +310,7 @@ static void endScope(void) {
 
 // responsible for compiling the right operand, and emits the
 // bytecode that performs the binary operation
-static void binary(bool canAssign) {
+static void binary(__attribute__((unused)) bool canAssign) {
     TokenType operatorType = parser.previous.tokenType;
     ParseRule* rule = getRule(operatorType);
     parsePrecedence(rule->precedence + 1);
@@ -349,7 +351,7 @@ static void binary(bool canAssign) {
     }
 }
 
-static void call(bool canAssign) {
+static void call(__attribute__((unused)) bool canAssign) {
     uint8_t argCount = argumentList();
     emitBytes(OP_CALL, argCount);
 }
@@ -367,7 +369,7 @@ static void dot(bool canAssign) {
 }
 
 // emit the byte for the corresponding literal token type
-static void literal(bool canAssign) {
+static void literal(__attribute__((unused)) bool canAssign) {
     // parsePrecedence has already consumed the keyword token,
     //  so we'll just output the proper instruction
     switch (parser.previous.tokenType) {
@@ -440,16 +442,40 @@ static void function(FunctionType functionType) {
     }
 }
 
+static void method(void) {
+    // method requires three things: name, closure, class to bind method to.
+
+    // first handle the name for the method
+    consume(TOKEN_IDENTIFIER, "Expect method name.");
+    const uint8_t constant = identifierConstant(&parser.previous);
+
+    FunctionType functionType = TYPE_FUNCTION;
+    function(functionType);
+
+    emitBytes(OP_METHOD, constant);
+}
+
 static void classDeclaration(void) {
     consume(TOKEN_IDENTIFIER, "Expect class name.");
+    const Token className = parser.previous;
     const uint8_t nameConstant = identifierConstant(&parser.previous);
     declareVariable();
 
     emitBytes(OP_CLASS, nameConstant);
     defineVariable(nameConstant);
 
+    // generate code to load the variable with the given name on the stack
+    namedVariable(className, false);
+
     consume(TOKEN_LEFT_BRACE, "Expect '{' before class body.");
+    while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
+        // lox does not support field declarations, so anything
+        // prior to the closing brace must be a method
+        method();
+    }
+
     consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
+    emitByte(OP_POP);
 }
 
 // create and store a function in a newly created variable
@@ -473,6 +499,7 @@ static void varDeclaration(void) {
 
     defineVariable(global);
 }
+
 // an expression followed by a semicolon (expression where statement is
 // expected)
 static void expressionStatement(void) {
@@ -663,7 +690,7 @@ static void statement(void) {
     }
 }
 
-static void grouping(bool canAssign) {
+static void grouping(__attribute__((unused)) bool canAssign) {
     // assumes the initial '(' was already consumed
     expression();
     consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
@@ -715,12 +742,12 @@ static void initCompiler(Compiler* compiler, FunctionType functionType) {
 
 // parse the value from the parser's previous location and emit a constant with
 // the parsed value
-static void number(bool canAssign) {
+static void number(__attribute__((unused)) bool canAssign) {
     const double value = strtod(parser.previous.start, NULL);
     emitConstant(NUMBER_VAL(value));
 }
 
-static void or_(bool canAssign) {
+static void or_(__attribute__((unused)) bool canAssign) {
     const int elseJump = emitJump(OP_JUMP_IF_FALSE);
     const int endJump = emitJump(OP_JUMP);
 
@@ -731,7 +758,7 @@ static void or_(bool canAssign) {
     patchJump(endJump);
 }
 
-static void string(bool canAssign) {
+static void string(__attribute__((unused)) bool canAssign) {
     // avoid the leading and trailing `"`
     ObjString* objStr = copyString(parser.previous.start + 1, parser.previous.length - 2);
     Value value = OBJ_VAL(objStr);
@@ -770,7 +797,7 @@ static void variable(bool canAssign) {
 }
 
 // emit a byte for the corresponding unary prefix expression
-static void unary(bool canAssign) {
+static void unary(__attribute__((unused)) bool canAssign) {
     // leading '-' has been previously consumed
     TokenType operatorType = parser.previous.tokenType;
 
@@ -1033,7 +1060,7 @@ static uint8_t argumentList(void) {
     return argCount;
 }
 
-static void and_(bool canAssign) {
+static void and_(__attribute__((unused)) bool canAssign) {
     // at this point the left expression has already been compiled
     // if left value is falsey left value is the result of the expression
     const int endJump = emitJump(OP_JUMP_IF_FALSE);

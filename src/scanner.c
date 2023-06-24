@@ -197,7 +197,7 @@ static TokenType identifierType(void) {
     return TOKEN_IDENTIFIER;
 }
 
-static Token number(void) {
+static Token number(__attribute__((unused)) void) {
     while (isDigit(peek())) {
         advance();
     }

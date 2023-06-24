@@ -138,6 +138,9 @@ int disassembleInstruction(Chunk* chunk, int offset) {
         case OP_CLASS:
             return constantInstruction("OP_CLASS", chunk, offset);
 
+        case OP_METHOD:
+            return constantInstruction("OP_METHOD", chunk, offset);
+
         case OP_LOOP:
             return jumpInstruction("OP_LOOP", -1, chunk, offset);
 
