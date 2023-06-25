@@ -76,7 +76,7 @@ typedef struct {
 } Upvalue;
 
 // support both top-level code (implicit function) and declared functions
-typedef enum { TYPE_FUNCTION, TYPE_SCRIPT, TYPE_METHOD } FunctionType;
+typedef enum { TYPE_FUNCTION, TYPE_SCRIPT, TYPE_METHOD, TYPE_INITIALIZER } FunctionType;
 
 typedef struct Compiler {
     struct Compiler*
@@ -248,7 +248,13 @@ static int emitJump(uint8_t instruction) {
 
 static void emitReturn(void) {
     // implictly returns nil if no implicit return value specified
-    emitByte(OP_NIL);
+    if (currentCompiler->functionType == TYPE_INITIALIZER) {
+        // load slot 0 which contains the instance
+        emitBytes(OP_GET_LOCAL, 0);
+    } else {
+        emitByte(OP_NIL);
+    }
+
     emitByte(OP_RETURN);
 }
 
@@ -456,6 +462,12 @@ static void method(void) {
     const uint8_t constant = identifierConstant(&parser.previous);
 
     FunctionType functionType = TYPE_METHOD;
+
+    // determine if the method is the initializer
+    if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0) {
+        functionType = TYPE_INITIALIZER;
+    }  // otherwise, it's just a normal method
+
     function(functionType);
 
     emitBytes(OP_METHOD, constant);
@@ -485,6 +497,8 @@ static void classDeclaration(void) {
     }
 
     consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
+
+    // all methods consumed; we no longer need the class, so pop it.
     emitByte(OP_POP);
 
     currentClass = currentClass->enclosing;
@@ -613,6 +627,10 @@ static void returnStatement(void) {
         // implicit return (returns nil)
         emitReturn();
     } else {
+        if (currentCompiler->functionType == TYPE_INITIALIZER) {
+            error("Can't return a value from an initializer.");
+        }
+
         expression();
         consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
         emitByte(OP_RETURN);

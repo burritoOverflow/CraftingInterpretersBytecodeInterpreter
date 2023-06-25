@@ -91,6 +91,7 @@ typedef struct {
 } ObjInstance;
 
 // wraps the receiver and the method closure together
+// tracks the instance that the method was accessed from
 typedef struct {
     Obj obj;
     Value receiver;

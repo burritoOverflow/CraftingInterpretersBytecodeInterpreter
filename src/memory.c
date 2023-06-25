@@ -162,6 +162,7 @@ static void freeObject(Obj* object) {
 
         case OBJ_CLASS: {
             ObjClass* klass = (ObjClass*)object;
+            // ObjClass owns the memory for this table, so clear here
             freeTable(&klass->methods);
             FREE(ObjClass, object);
             break;
@@ -228,6 +229,7 @@ static void markRoots(void) {
 
     markTable(&vm.globals);
     markCompilerRoots();
+    markObject((Obj*)vm.initString);
 }
 
 static void traceReferences(void) {

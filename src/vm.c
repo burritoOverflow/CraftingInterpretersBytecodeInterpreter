@@ -8,6 +8,7 @@
 #include "debug.h"
 #include "memory.h"
 #include "object.h"
+#include "table.h"
 #include "vm.h"
 
 VM vm;
@@ -73,6 +74,10 @@ void initVm(void) {
     initTable(&vm.globals);
     initTable(&vm.strings);
 
+    // intern the "init" string when the vm starts
+    vm.initString = NULL;
+    vm.initString = copyString("init", 4);
+
     defineNative("clock", clockNative);
 }
 
@@ -80,6 +85,9 @@ void initVm(void) {
 void freeVm(void) {
     freeTable(&vm.globals);
     freeTable(&vm.strings);
+
+    // clear the init string pointer prior to free'ing it (next line)
+    vm.initString = NULL;
     freeObjects();
 }
 
@@ -106,6 +114,7 @@ static Value peek(int distance) {
 // store the pointer to the function being called
 // and point the frame's ip to the function's code
 // slots pointer points to it's "window" in the stack
+// return true when closure is valid; false otherwise
 static bool call(ObjClosure* closure, int argCount) {
     if (argCount != closure->function->arity) {
         runtimeError("Expected %d arguments; got %d arguments.", closure->function->arity,
@@ -130,6 +139,7 @@ static bool callValue(Value callee, int argCount) {
         switch (OBJ_TYPE(callee)) {
             case OBJ_BOUND_METHOD: {
                 ObjBoundMethod* boundMethod = AS_BOUND_METHOD(callee);
+                
                 // top of the stack contains the args, under those is the closure of the called
                 // method insert the reciever into that slot
                 vm.stackTop[-argCount - 1] = boundMethod->receiver;
@@ -141,6 +151,17 @@ static bool callValue(Value callee, int argCount) {
                 // create a new instance of the class and store on the stack
                 ObjClass* klass = AS_CLASS(callee);
                 vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass));
+                Value initializer;
+
+                // automatically invoke `init` method if present on instance
+                if (tableGet(&klass->methods, vm.initString, &initializer)) {
+                    // push a new CallFrame for the initializer's closure
+                    return call(AS_CLOSURE(initializer), argCount);
+                } else if (argCount != 0) {
+                    runtimeError("Expected 0 arguments, got %d", argCount);
+                    return false;
+                }
+
                 return true;
             }
 
@@ -182,6 +203,7 @@ static bool bindMethod(ObjClass* klass, ObjString* methodName) {
     ObjBoundMethod* boundMethod = newBoundMethod(peek(0), AS_CLOSURE(method));
 
     pop();
+
     // replace with the newly bound method
     push(OBJ_VAL(boundMethod));
     return true;
@@ -229,6 +251,7 @@ static void closeUpvalues(Value* last) {
     }
 }
 
+// Add the method with `name` to the Class's constant table
 static void defineMethod(ObjString* name) {
     Value method = peek(0);
     ObjClass* klass = AS_CLASS(peek(1));
@@ -547,7 +570,9 @@ static InterpretResult run(void) {
                     break;
                 }
 
+                // otherwise handle the case where the property name refers to a method
                 if (!bindMethod(instance->klass, name)) {
+                    // if we've reached here, it's neither a field nor a method, so we've an error
                     return INTERPRET_RUNTIME_ERROR;
                 }
                 break;
