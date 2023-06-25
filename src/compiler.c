@@ -890,9 +890,18 @@ static void super_(__attribute__((unused)) bool canAssign) {
     const uint8_t name = identifierConstant(&parser.previous);
 
     namedVariable(syntheticToken("this"), false);
-    namedVariable(syntheticToken("super"), false);
 
-    emitBytes(OP_GET_SUPER, name);
+    // see 29.3.2
+    // same optimatization approach as method calls
+    if (match(TOKEN_LEFT_PAREN)) {
+        uint8_t argcount = argumentList();
+        namedVariable(syntheticToken("super"), false);
+        emitBytes(OP_SUPER_INVOKE, name);
+        emitByte(argcount);
+    } else {
+        namedVariable(syntheticToken("super"), false);
+        emitBytes(OP_GET_SUPER, name);
+    }
 }
 
 static void this_(__attribute__((unused)) bool canAssign) {

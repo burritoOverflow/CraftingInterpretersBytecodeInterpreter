@@ -318,6 +318,7 @@ static void concatenate(void) {
 
 // reads and executes a bytecode instruction
 static InterpretResult run(void) {
+    // cached pointer to the interpreters call frame
     CallFrame* frame = &vm.frames[vm.frameCount - 1];
 
 // read the byte currently pointed to by the IP, and advance IP
@@ -447,6 +448,22 @@ static InterpretResult run(void) {
 
                 // w/ successful `invoke`, refresh cached copy of the current frame
                 // as there is now a new `CallFrame` on the stack
+                frame = &vm.frames[vm.frameCount - 1];
+                break;
+            }
+
+            // see 29.3.2
+            case OP_SUPER_INVOKE: {
+                ObjString* method = READ_STRING();
+                const int argCount = READ_BYTE();
+                ObjClass* superclass = AS_CLASS(pop());
+
+                // pushes a new `CallFrame` on the stack for the method's closure
+                if (!invokeFromClass(superclass, method, argCount)) {
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+
+                // refresh frame, as the new `CallFrame` above invalidates the frame pointer
                 frame = &vm.frames[vm.frameCount - 1];
                 break;
             }
