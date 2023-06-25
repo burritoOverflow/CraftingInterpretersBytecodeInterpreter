@@ -4,6 +4,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "chunk.h"
 #include "compiler.h"
 #include "debug.h"
 #include "memory.h"
@@ -139,7 +140,7 @@ static bool callValue(Value callee, int argCount) {
         switch (OBJ_TYPE(callee)) {
             case OBJ_BOUND_METHOD: {
                 ObjBoundMethod* boundMethod = AS_BOUND_METHOD(callee);
-                
+
                 // top of the stack contains the args, under those is the closure of the called
                 // method insert the reciever into that slot
                 vm.stackTop[-argCount - 1] = boundMethod->receiver;
@@ -188,6 +189,35 @@ static bool callValue(Value callee, int argCount) {
 
     runtimeError("Can only call functions and classes.");
     return false;
+}
+
+static bool invokeFromClass(ObjClass* klass, ObjString* methodName, int argCount) {
+    Value method;
+
+    if (!tableGet(&klass->methods, methodName, &method)) {
+        runtimeError("Undefined property '%s'.", methodName->chars);
+        return false;
+    }
+
+    return call(AS_CLOSURE(method), argCount);
+}
+
+static bool invoke(ObjString* name, int argCount) {
+    Value reciever = peek(argCount);
+    if (!IS_INSTANCE(reciever)) {
+        runtimeError("Only instances have methods.");
+        return false;
+    }
+
+    ObjInstance* instance = AS_INSTANCE(reciever);
+
+    Value value;
+    if (tableGet(&instance->fields, name, &value)) {
+        vm.stackTop[-argCount - 1] = value;
+        return callValue(value, argCount);
+    }
+
+    return invokeFromClass(instance->klass, name, argCount);
 }
 
 static bool bindMethod(ObjClass* klass, ObjString* methodName) {
@@ -403,6 +433,21 @@ static InterpretResult run(void) {
             case OP_LOOP: {
                 const uint16_t offset = READ_SHORT();
                 frame->ip -= offset;
+                break;
+            }
+
+            // see section 28.5
+            case OP_INVOKE: {
+                ObjString* methodName = READ_STRING();
+                int argCount = READ_BYTE();
+
+                if (!invoke(methodName, argCount)) {
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+
+                // w/ successful `invoke`, refresh cached copy of the current frame
+                // as there is now a new `CallFrame` on the stack
+                frame = &vm.frames[vm.frameCount - 1];
                 break;
             }
 
