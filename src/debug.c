@@ -1,8 +1,10 @@
 #include <stdio.h>
 
+#include "chunk.h"
 #include "debug.h"
 #include "object.h"
 #include "value.h"
+#include "vm.h"
 
 // Disassemble all instructions in a Chunk
 void disassembleChunk(Chunk* chunk, const char* name) {
@@ -150,6 +152,9 @@ int disassembleInstruction(Chunk* chunk, int offset) {
 
         case OP_CLASS:
             return constantInstruction("OP_CLASS", chunk, offset);
+
+        case OP_INHERIT:
+            return simpleInstruction("OP_INHERIT", offset);
 
         case OP_METHOD:
             return constantInstruction("OP_METHOD", chunk, offset);

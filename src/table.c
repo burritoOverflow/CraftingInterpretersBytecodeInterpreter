@@ -135,6 +135,7 @@ bool tableDelete(Table* table, ObjString* key) {
     return true;
 }
 
+// Add all entries from `src` `Table` to `dst` `Table`.
 void tableAddAll(Table* src, Table* dest) {
     for (int i = 0; i < src->capacity; ++i) {
         Entry* entry = &src->entries[i];

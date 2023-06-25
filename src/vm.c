@@ -652,6 +652,18 @@ static InterpretResult run(void) {
                 break;
             }
 
+            case OP_GET_SUPER: {
+                // details in 29.3.1
+                ObjString* name = READ_STRING();
+                ObjClass* superclass = AS_CLASS(pop());
+
+                // pops the instance and pushes the new bound method
+                if (!bindMethod(superclass, name)) {
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+                break;
+            }
+
             case OP_GREATER:
                 BINARY_OP(BOOL_VAL, >);
                 break;
@@ -663,6 +675,25 @@ static InterpretResult run(void) {
             case OP_CLASS:
                 push(OBJ_VAL(newClass(READ_STRING())));
                 break;
+
+            case OP_INHERIT: {
+                // subclass first on stack
+                Value superclass = peek(1);
+                if (!IS_CLASS(superclass)) {
+                    runtimeError("Superclass must be a class.");
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+
+                ObjClass* subclass = AS_CLASS(peek(0));
+
+                // when the subclass is declared, we copy all inherited superclass methods into
+                // the subclass's method table (thus inherited method calls are as fast as 'normal'
+                // method calls)
+                tableAddAll(&AS_CLASS(superclass)->methods, &subclass->methods);
+
+                pop();  // Subclass
+                break;
+            }
 
             case OP_METHOD: {
                 defineMethod(READ_STRING());
