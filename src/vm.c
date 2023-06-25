@@ -128,6 +128,14 @@ static bool call(ObjClosure* closure, int argCount) {
 static bool callValue(Value callee, int argCount) {
     if (IS_OBJ(callee)) {
         switch (OBJ_TYPE(callee)) {
+            case OBJ_BOUND_METHOD: {
+                ObjBoundMethod* boundMethod = AS_BOUND_METHOD(callee);
+                // top of the stack contains the args, under those is the closure of the called
+                // method insert the reciever into that slot
+                vm.stackTop[-argCount - 1] = boundMethod->receiver;
+                return call(boundMethod->method, argCount);
+            }
+
             // instantiating an instance of a class is via a `call` on the class name
             case OBJ_CLASS: {
                 // create a new instance of the class and store on the stack
@@ -159,6 +167,24 @@ static bool callValue(Value callee, int argCount) {
 
     runtimeError("Can only call functions and classes.");
     return false;
+}
+
+static bool bindMethod(ObjClass* klass, ObjString* methodName) {
+    Value method;
+
+    // ensure the method is present in the class's method table
+    if (!tableGet(&klass->methods, methodName, &method)) {
+        runtimeError("Undefined property '%s'.", methodName->chars);
+        return false;
+    }
+
+    // get the reciever from the top of the stack
+    ObjBoundMethod* boundMethod = newBoundMethod(peek(0), AS_CLOSURE(method));
+
+    pop();
+    // replace with the newly bound method
+    push(OBJ_VAL(boundMethod));
+    return true;
 }
 
 // close the upvalue (see 25.4.3)
@@ -513,18 +539,18 @@ static InterpretResult run(void) {
                 // read the field name from the constant pool
                 ObjString* name = READ_STRING();
 
-                Value value;
-
                 // read the field's value from the instance's field table
+                Value value;
                 if (tableGet(&instance->fields, name, &value)) {
                     pop();  // Instance
                     push(value);
                     break;
                 }
 
-                // field not found
-                runtimeError("Undefined property %s", name->chars);
-                return INTERPRET_RUNTIME_ERROR;
+                if (!bindMethod(instance->klass, name)) {
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+                break;
             }
 
                 // see section 27.4.1

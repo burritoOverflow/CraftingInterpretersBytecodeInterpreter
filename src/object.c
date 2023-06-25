@@ -78,6 +78,13 @@ static ObjString* allocateObjString(char* chars, int length, uint32_t hash) {
     return string;
 }
 
+ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method) {
+    ObjBoundMethod* boundMethod = ALLOCATE_OBJ(ObjBoundMethod, OBJ_BOUND_METHOD);
+    boundMethod->receiver = receiver;
+    boundMethod->method = method;
+    return boundMethod;
+}
+
 ObjClass* newClass(ObjString* className) {
     ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
     initTable(&klass->methods);
@@ -150,6 +157,11 @@ static void printFunction(ObjFunction* function) {
 
 void printObject(Value value) {
     switch (OBJ_TYPE(value)) {
+        case OBJ_BOUND_METHOD: {
+            printFunction(AS_BOUND_METHOD(value)->method->function);
+            break;
+        }
+
         case OBJ_STRING:
             printf("%s", AS_CSTRING(value));
             break;

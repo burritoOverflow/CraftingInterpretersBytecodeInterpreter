@@ -76,7 +76,7 @@ typedef struct {
 } Upvalue;
 
 // support both top-level code (implicit function) and declared functions
-typedef enum { TYPE_FUNCTION, TYPE_SCRIPT } FunctionType;
+typedef enum { TYPE_FUNCTION, TYPE_SCRIPT, TYPE_METHOD } FunctionType;
 
 typedef struct Compiler {
     struct Compiler*
@@ -91,9 +91,15 @@ typedef struct Compiler {
     int scopeDepth;  // 0 is global scope, etc
 } Compiler;
 
+typedef struct ClassCompiler {
+    struct ClassCompiler* enclosing;
+} ClassCompiler;
+
 Parser parser;
 
 Compiler* currentCompiler = NULL;
+
+ClassCompiler* currentClass = NULL;
 
 // forward declarations
 static ParseRule* getRule(TokenType type);
@@ -449,7 +455,7 @@ static void method(void) {
     consume(TOKEN_IDENTIFIER, "Expect method name.");
     const uint8_t constant = identifierConstant(&parser.previous);
 
-    FunctionType functionType = TYPE_FUNCTION;
+    FunctionType functionType = TYPE_METHOD;
     function(functionType);
 
     emitBytes(OP_METHOD, constant);
@@ -464,6 +470,10 @@ static void classDeclaration(void) {
     emitBytes(OP_CLASS, nameConstant);
     defineVariable(nameConstant);
 
+    ClassCompiler classCompiler;
+    classCompiler.enclosing = currentClass;
+    currentClass = &classCompiler;
+
     // generate code to load the variable with the given name on the stack
     namedVariable(className, false);
 
@@ -476,6 +486,8 @@ static void classDeclaration(void) {
 
     consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
     emitByte(OP_POP);
+
+    currentClass = currentClass->enclosing;
 }
 
 // create and store a function in a newly created variable
@@ -736,8 +748,13 @@ static void initCompiler(Compiler* compiler, FunctionType functionType) {
     Local* local = &currentCompiler->locals[currentCompiler->localCount++];
     local->depth = 0;
     local->isCaptured = false;
-    local->name.start = "";
-    local->name.length = 0;
+    if (functionType != TYPE_FUNCTION) {
+        local->name.start = "this";
+        local->name.length = 4;
+    } else {
+        local->name.start = "";
+        local->name.length = 0;
+    }
 }
 
 // parse the value from the parser's previous location and emit a constant with
@@ -794,6 +811,16 @@ static void namedVariable(Token name, bool canAssign) {
 
 static void variable(bool canAssign) {
     namedVariable(parser.previous, canAssign);
+}
+
+static void this_(__attribute__((unused)) bool canAssign) {
+    if (currentClass == NULL) {
+        error("Can't use 'this' outside of a class.");
+        return;
+    }
+
+    // details in section 28.3
+    variable(false);
 }
 
 // emit a byte for the corresponding unary prefix expression
@@ -857,7 +884,7 @@ ParseRule rules[] = {
     [TOKEN_PRINT] = {NULL, NULL, PREC_NONE},
     [TOKEN_RETURN] = {NULL, NULL, PREC_NONE},
     [TOKEN_SUPER] = {NULL, NULL, PREC_NONE},
-    [TOKEN_THIS] = {NULL, NULL, PREC_NONE},
+    [TOKEN_THIS] = {this_, NULL, PREC_NONE},
     [TOKEN_TRUE] = {literal, NULL, PREC_NONE},
     [TOKEN_VAR] = {NULL, NULL, PREC_NONE},
     [TOKEN_WHILE] = {NULL, NULL, PREC_NONE},
