@@ -126,7 +126,7 @@ static uint8_t argumentList(void);
 
 static uint8_t identifierConstant(Token* name);
 
-static bool identifiersEqual(Token* a, Token* b);
+static bool identifiersEqual(const Token* a, const Token* b);
 
 static uint8_t parseVariable(const char* errMsg);
 
@@ -1014,7 +1014,7 @@ static uint8_t identifierConstant(Token* name) {
     return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
 }
 
-static bool identifiersEqual(Token* a, Token* b) {
+static bool identifiersEqual(const Token* a, const Token* b) {
     if (a->length != b->length)
         return false;
 
