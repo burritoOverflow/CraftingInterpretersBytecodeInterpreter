@@ -29,6 +29,8 @@ if (CMAKE_BUILD_TYPE STREQUAL Debug)
     add_compile_definitions(DEBUG_STRESS_GC)
     add_compile_definitions(DEBUG_LOG_GC)
 elseif (CMAKE_BUILD_TYPE STREQUAL Release)
+    # optimization from section 30.3
+    add_compile_definitions(NAN_BOXING)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
     message("Release build: using CMAKE_C_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE}")
 endif ()

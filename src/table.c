@@ -22,8 +22,14 @@ void freeTable(Table* table) {
 // given a key and an array of buckets, determine which bucket the entry belongs in, and return the
 // corresponding Entry
 static Entry* findEntry(Entry* entries, int capacity, ObjString* key) {
-    // map the key's hash code to an index in the array
-    uint32_t index = key->hash % capacity;
+    /*
+    map the key's hash code to an index in the array
+    see the optimization in section 30.2.1 (Slow key wrapping)
+    calculate a number modulo any power of two by simply AND-ing it with that power of two minus
+    one.
+    */
+
+    uint32_t index = key->hash & (capacity - 1);
     Entry* tombstone = NULL;
 
     // eventually find an empty bucket
@@ -44,7 +50,7 @@ static Entry* findEntry(Entry* entries, int capacity, ObjString* key) {
         }
 
         // perform the linear probing, as the bucket has a different key
-        index = (index + 1) % capacity;
+        index = (index + 1) & (capacity - 1);
     }
 }
 
@@ -151,7 +157,8 @@ ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t
     if (table->count == 0)
         return false;
 
-    uint32_t index = hash % table->capacity;
+    // from the `optimization` chapter; see 30.2
+    uint32_t index = hash & (table->capacity - 1);
 
     for (;;) {
         Entry* entry = &table->entries[index];
@@ -166,7 +173,7 @@ ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t
             return entry->key;
         }
 
-        index = (index + 1) % table->capacity;
+        index = (index + 1) & (table->capacity - 1);
     }
 }
 
