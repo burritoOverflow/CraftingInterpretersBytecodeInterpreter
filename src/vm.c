@@ -169,19 +169,14 @@ static bool callValue(Value callee, int argCount) {
             case OBJ_CLOSURE:
                 return call(AS_CLOSURE(callee), argCount);
 
-            case OBJ_NATIVE:
-                // TODO - determine a legitimate cause of this error; for now a workaround to
-                // compile with clang
-#ifdef __clang__
-                vm.stackTop -= argCount + 1;
-                push((((ObjNative*)(callee).as.obj)->function(argCount, vm.stackTop - argCount)));
-#elif __GNUC__
+            case OBJ_NATIVE: {
                 const NativeFn native = AS_NATIVE(callee);
                 const Value result = native(argCount, vm.stackTop - argCount);
                 vm.stackTop -= argCount + 1;
                 push(result);
-#endif
+
                 return true;
+            }
             default:
                 break;  // non-callable object type
         }
