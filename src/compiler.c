@@ -242,8 +242,8 @@ static void emitLoop(const int loopStart) {
         error("Loop body too large.");
     }
 
-    emitByte((offset >> 8) & 0xff);
-    emitByte(offset & 0xff);
+    emitByte((uint8_t)(offset >> 8) & 0xff);
+    emitByte((uint8_t)offset & 0xff);
 }
 
 // emit a bytecode operand and write placeholder for the jump offset
@@ -780,8 +780,8 @@ static void patchJump(const int offset) {
         error("Too much code to jump over.");
     }
 
-    currentChunk()->code[offset] = (jump >> 8) & 0xff;
-    currentChunk()->code[offset + 1] = jump & 0xff;
+    currentChunk()->code[offset] = (uint8_t)(jump >> 8) & 0xff;
+    currentChunk()->code[offset + 1] = (uint8_t)jump & 0xff;
 }
 
 // set the initial state of `compiler` to a zero-state.
