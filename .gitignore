@@ -10,6 +10,7 @@ compile_commands.json
 CTestTestfile.cmake
 _deps
 build/
+BUILD/
 cmake-build-debug/
 Build/
 *.swp
