@@ -5,7 +5,6 @@
 
 PROJECTROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 BUILDROOT := $(abspath $(PROJECTROOT)/BUILD)
-
 .DEFAULT_GOAL := all
 .PHONY : all
 all : debug release relwithdebinfo
@@ -13,6 +12,15 @@ all : debug release relwithdebinfo
 # use Ninja if present
 CMAKE_GENERATOR ?= $(shell (command -v ninja > /dev/null 2>&1 && echo "Ninja") || \
     echo "Unix Makefiles")
+
+CC = gcc
+CLANGCHECK := $(shell which clang)
+ifeq ($(CLANGCHECK),)
+$(info CC - clang not found; using gcc)
+else
+$(info CC - clang found; using clang)
+	CC = clang
+endif
 
 .PHONY : echo
 echo :
@@ -25,15 +33,15 @@ clean :
 
 .PHONY : debug
 debug :
-	cmake -S "$(PROJECTROOT)" -B "$(BUILDROOT)/Debug"  -DCMAKE_BUILD_TYPE=Debug -G $(CMAKE_GENERATOR)
+	cmake -S "$(PROJECTROOT)" -B "$(BUILDROOT)/Debug" -DCMAKE_C_COMPILER=$(CC) -DCMAKE_BUILD_TYPE=Debug -G $(CMAKE_GENERATOR)
 	cmake --build "$(BUILDROOT)/Debug" --verbose
 
 .PHONY : release
 release :
-	cmake -S "$(PROJECTROOT)" -B "$(BUILDROOT)/Release"  -DCMAKE_BUILD_TYPE=Release -G $(CMAKE_GENERATOR)
+	cmake -S "$(PROJECTROOT)" -B "$(BUILDROOT)/Release" -DCMAKE_C_COMPILER=$(CC)  -DCMAKE_BUILD_TYPE=Release -G $(CMAKE_GENERATOR)
 	cmake --build "$(BUILDROOT)/Release" --verbose
 
 .PHONY : RelWithDebInfo
 relwithdebinfo :
-	cmake -S "$(PROJECTROOT)" -B "$(BUILDROOT)/RelWithDebugInfo"  -DCMAKE_BUILD_TYPE=RelWithDebInfo -G $(CMAKE_GENERATOR)
+	cmake -S "$(PROJECTROOT)" -B "$(BUILDROOT)/RelWithDebugInfo" -DCMAKE_C_COMPILER=$(CC) -DCMAKE_BUILD_TYPE=RelWithDebugInfo -G $(CMAKE_GENERATOR)
 	cmake --build "$(BUILDROOT)/RelWithDebugInfo" --verbose
