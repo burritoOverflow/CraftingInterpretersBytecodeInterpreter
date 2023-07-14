@@ -940,6 +940,12 @@ static void unary(__attribute__((unused)) bool canAssign) {
 }
 
 // prefixFunc, infixFunc, precedence
+/*
+    1. function to compile a prefix expression starting with a token of that type
+    2. function to compile an infix expression whose left operand is followed by
+        a token of that type
+    3. the precedence of an infix expression that uses that token as an operator
+*/
 ParseRule rules[] = {
     [TOKEN_LEFT_PAREN] = {grouping, call, PREC_CALL},
     [TOKEN_RIGHT_PAREN] = {NULL, NULL, PREC_NONE},
@@ -991,14 +997,18 @@ static void parsePrecedence(Precedence precedence) {
     // get the prefix parser for the current token
     ParseFn prefixFn = getRule(parser.previous.tokenType)->prefix;
     if (prefixFn == NULL) {
+        // syntax error; missing prefix parser
         error("Expect expression.");
         return;
     }
 
+    // compile the rest of the prefix expression (see 17.61)
     const bool canAssign = precedence <= PREC_ASSIGNMENT;
     prefixFn(canAssign);
 
+    // infix expressions
     while (precedence <= getRule(parser.current.tokenType)->precedence) {
+        // iterate while valid infix operators (see 17.6.1)
         advance();
         ParseFn infixFn = getRule(parser.previous.tokenType)->infix;
         infixFn(canAssign);
