@@ -30,6 +30,7 @@ echo :
 .PHONY : clean
 clean :
 	$(RM) -r "$(BUILDROOT)"
+	$(shell unlink compile_commands.json)
 
 .PHONY : debug
 debug :
@@ -41,7 +42,7 @@ release :
 	cmake -S "$(PROJECTROOT)" -B "$(BUILDROOT)/Release" -DCMAKE_C_COMPILER=$(CC)  -DCMAKE_BUILD_TYPE=Release -G $(CMAKE_GENERATOR)
 	cmake --build "$(BUILDROOT)/Release" --verbose
 
-.PHONY : RelWithDebInfo
+.PHONY : relwithdebinfo
 relwithdebinfo :
 	cmake -S "$(PROJECTROOT)" -B "$(BUILDROOT)/RelWithDebugInfo" -DCMAKE_C_COMPILER=$(CC) -DCMAKE_BUILD_TYPE=RelWithDebugInfo -G $(CMAKE_GENERATOR)
 	cmake --build "$(BUILDROOT)/RelWithDebugInfo" --verbose
