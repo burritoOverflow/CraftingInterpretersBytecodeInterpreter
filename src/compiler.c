@@ -719,6 +719,8 @@ static void synchronize(void) {
 
             default:;
         }
+
+        advance();
     }
 }
 
