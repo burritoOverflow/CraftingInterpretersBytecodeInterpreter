@@ -214,6 +214,8 @@ static bool check(TokenType tokenType) {
     return parser.current.tokenType == tokenType;
 }
 
+// determine if the parser's current TokenType == `type`
+// advance the scanner if so and return true; false otherwise
 static bool match(TokenType type) {
     if (!check(type))
         return false;
@@ -384,6 +386,8 @@ static void dot(bool canAssign) {
     const uint8_t name = identifierConstant(&parser.previous);
 
     if (canAssign && match(TOKEN_EQUAL)) {
+        // assign-op after the identifier for the property; 
+        // parse the expr and assign it's result
         expression();
         emitBytes(OP_SET_PROPERTY, name);
     } else if (match(TOKEN_LEFT_PAREN)) {
@@ -1180,6 +1184,7 @@ static uint8_t argumentList(void) {
             if (argCount == MAX_ARITY) {
                 error("Can't have more than 255 arguments.");
             }
+
             argCount++;
         } while (match(TOKEN_COMMA));  // continue as long as commas are present
     }
